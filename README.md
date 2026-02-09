@@ -108,9 +108,14 @@ bun --version    # Should be 1.0+
 git --version    # Should be 2.39+
 ```
 
-### Optional: Create a dedicated user
+### Optional (advanced): Dedicated runtime user
 
-For better isolation, run the dashboard and OpenClaw under a separate macOS user:
+Default recommendation: run install + onboarding as your normal logged-in macOS GUI user.
+
+OpenClaw onboarding on macOS depends on per-user TCC permissions (Accessibility, Screen Recording, Automation, Notifications, etc.).
+If you switch to a separate non-admin user too early, onboarding commonly fails or misses required permissions.
+
+Use a dedicated `opagent` user only for hardened runtime separation after OpenClaw is already installed/onboarded and working:
 
 ```bash
 # Create user (requires admin)
@@ -126,9 +131,11 @@ sudo chown opagent:staff /Users/opagent
 # Set password
 sudo dscl . -passwd /Users/opagent <password>
 
-# Switch to the user
+# Optional: switch after OpenClaw onboarding is complete
 su - opagent
 ```
+
+If you use `opagent`, keep OpenClaw in the original onboarded user context and run the dashboard service under `opagent`.
 
 ---
 
@@ -176,6 +183,25 @@ tailscale ip -4
 # Prints just the IPv4 address
 ```
 
+### Find your `<your-tailnet>` value
+
+Use one of these methods:
+
+```bash
+# Recommended (requires jq)
+tailscale status --json | jq -r '.MagicDNSSuffix'
+# Example output: cat-crocodile.ts.net
+
+# Without jq: print JSON and look for MagicDNSSuffix
+tailscale status --json
+```
+
+For URLs like `https://mac-mini.<your-tailnet>.ts.net`, your `<your-tailnet>` is the suffix without `.ts.net`.
+Example: `cat-crocodile.ts.net` -> `<your-tailnet>` is `cat-crocodile`.
+
+You can also find it in the Tailscale admin console DNS page:
+`https://login.tailscale.com/admin/dns`
+
 ### Enable MagicDNS and HTTPS
 
 MagicDNS is enabled by default on tailnets created after October 2022. To verify:
@@ -189,6 +215,9 @@ MagicDNS is enabled by default on tailnets created after October 2022. To verify
 ---
 
 ## Step 3 — Install & Configure OpenClaw
+
+Run this step as the same logged-in macOS user that will own OpenClaw permissions and onboarding.
+Do not switch to `opagent` before this step.
 
 ### Install
 
