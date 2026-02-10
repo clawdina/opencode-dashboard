@@ -1,5 +1,6 @@
 import { timingSafeEqual } from 'crypto';
 import { NextRequest } from 'next/server';
+import { auditLog } from '@/lib/audit';
 
 const DEFAULT_ALLOWED_ORIGINS = 'http://127.0.0.1:3000,http://localhost:3000';
 const DEFAULT_RATE_LIMIT_WINDOW_MS = 60_000;
@@ -54,14 +55,18 @@ function extractClientIp(request: NextRequest): string {
 }
 
 export function validateAuth(request: NextRequest): AuthValidationResult {
+  const path = request.nextUrl.pathname;
+  const ip = extractClientIp(request);
   const authHeader = request.headers.get('authorization');
   const expectedToken = process.env.DASHBOARD_API_KEY;
 
   if (!expectedToken) {
+    auditLog('auth_failure', { ip, path, reason: 'missing_server_api_key' });
     return { valid: false, error: 'Missing server API key configuration' };
   }
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    auditLog('auth_failure', { ip, path, reason: 'missing_or_invalid_authorization_header' });
     return { valid: false, error: 'Missing or invalid Authorization header' };
   }
 
@@ -74,9 +79,11 @@ export function validateAuth(request: NextRequest): AuthValidationResult {
     timingSafeEqual(providedBuffer, expectedBuffer);
 
   if (!isMatch) {
+    auditLog('auth_failure', { ip, path, reason: 'invalid_api_key' });
     return { valid: false, error: 'Invalid API key' };
   }
 
+  auditLog('auth_success', { path });
   return { valid: true };
 }
 
@@ -100,6 +107,7 @@ export function corsHeaders(request: NextRequest): HeadersInit {
 export function checkRateLimit(request: NextRequest): RateLimitResult {
   const { windowMs, maxRequests } = getRateLimitConfig();
   const ip = extractClientIp(request);
+  const path = request.nextUrl.pathname;
   const now = Date.now();
   const windowStart = now - windowMs;
 
@@ -112,6 +120,8 @@ export function checkRateLimit(request: NextRequest): RateLimitResult {
     const retryAfterSeconds = Math.max(Math.ceil(retryAfterMs / 1000), 1);
 
     rateLimitBuckets.set(ip, recentRequests);
+
+    auditLog('rate_limit_hit', { ip, path });
 
     return {
       allowed: false,
