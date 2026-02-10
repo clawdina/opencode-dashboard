@@ -54,8 +54,31 @@ async function sendEvent(type: EventType, payload: Record<string, unknown>, sess
   }
 }
 
-async function syncTodos(todos: Todo[], sessionId?: string) {
+async function syncTodos(todos: Todo[], sessionId?: string, agentName?: string) {
   try {
+    const batchResponse = await fetch(`${DASHBOARD_URL}/api/todos`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        todos: todos.map((todo) => ({
+          id: todo.id,
+          content: todo.content,
+          status: todo.status,
+          priority: todo.priority,
+          session_id: sessionId,
+          agent: agentName,
+        })),
+      }),
+    });
+
+    if (batchResponse.ok) {
+      return;
+    }
+
+    console.warn(
+      `[Dashboard Hook] Batch todo sync failed with status ${batchResponse.status}, falling back to POST sync`
+    );
+
     for (const todo of todos) {
       await fetch(`${DASHBOARD_URL}/api/todos`, {
         method: 'POST',
@@ -66,6 +89,7 @@ async function syncTodos(todos: Todo[], sessionId?: string) {
           status: todo.status,
           priority: todo.priority,
           session_id: sessionId,
+          agent: agentName,
         }),
       });
     }
@@ -78,7 +102,7 @@ export const dashboardHook = {
   name: 'dashboard-hook',
   
   onTodoUpdate: async (todos: Todo[], context: HookContext) => {
-    await syncTodos(todos, context.sessionId);
+    await syncTodos(todos, context.sessionId, context.agentName);
     
     await sendEvent('todo_update', {
       count: todos.length,

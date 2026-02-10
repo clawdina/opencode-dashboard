@@ -12,6 +12,14 @@ const CreateTodoSchema = z.object({
   session_id: z.string().optional(),
 });
 
+const BatchTodoSchema = CreateTodoSchema.extend({
+  id: z.string(),
+});
+
+const BatchTodosRequestSchema = z.object({
+  todos: z.array(BatchTodoSchema),
+});
+
 type CreateTodoRequest = z.infer<typeof CreateTodoSchema>;
 
 /**
@@ -132,12 +140,86 @@ export async function POST(request: NextRequest) {
 }
 
 /**
+ * PUT /api/todos
+ * Batch create or update todos
+ */
+export async function PUT(request: NextRequest) {
+  const authResult = validateAuth(request);
+  if (!authResult.valid) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders(request) });
+  }
+
+  const rateLimitResult = checkRateLimit(request);
+  if (!rateLimitResult.allowed) {
+    const headers = new Headers(corsHeaders(request));
+    headers.set('Retry-After', String(rateLimitResult.retryAfterSeconds ?? 1));
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers });
+  }
+
+  try {
+    const body = await request.json();
+    const data = BatchTodosRequestSchema.parse(body);
+    const results: Array<{ id: string; action: 'created' | 'updated' }> = [];
+
+    for (const todoData of data.todos) {
+      const existingTodo = db.getTodo(todoData.id);
+
+      if (existingTodo) {
+        db.updateTodo(todoData.id, {
+          content: todoData.content,
+          status: todoData.status || 'pending',
+          priority: todoData.priority || 'medium',
+          agent: todoData.agent || null,
+          session_id: todoData.session_id || null,
+          updated_at: Date.now(),
+        });
+        results.push({ id: todoData.id, action: 'updated' });
+      } else {
+        db.createTodo({
+          id: todoData.id,
+          content: todoData.content,
+          status: todoData.status || 'pending',
+          priority: todoData.priority || 'medium',
+          agent: todoData.agent || null,
+          session_id: todoData.session_id || null,
+        });
+        results.push({ id: todoData.id, action: 'created' });
+      }
+    }
+
+    return NextResponse.json(
+      { results },
+      {
+        status: 200,
+        headers: corsHeaders(request),
+      }
+    );
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid request body', details: error.issues },
+        { status: 400, headers: corsHeaders(request) }
+      );
+    }
+
+    console.error('Error batch creating/updating todos:', error);
+    return NextResponse.json(
+      { error: 'Failed to batch create/update todos' },
+      { status: 500, headers: corsHeaders(request) }
+    );
+  }
+}
+
+/**
  * OPTIONS /api/todos
  * Handle CORS preflight
  */
 export async function OPTIONS(request: NextRequest) {
+  const headers = new Headers(corsHeaders(request));
+  headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
+
   return new NextResponse(null, {
     status: 200,
-    headers: corsHeaders(request),
+    headers,
   });
 }
