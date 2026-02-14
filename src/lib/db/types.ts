@@ -49,6 +49,10 @@ export interface Task {
   complexity_score: number | null;
   assigned_agent_id: string | null;
   linear_issue_id: string | null;
+  /** Distinguishes v1 legacy todos from native v2 tasks */
+  source?: 'v1' | 'v2';
+  /** Original V1 todo string ID (only present when source === 'v1') */
+  original_id?: string;
   created_at: number;
   updated_at: number;
 }

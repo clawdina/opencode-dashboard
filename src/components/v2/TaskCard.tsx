@@ -139,6 +139,15 @@ export function TaskCard({ task, subtasks, onClick, isDragging }: TaskCardProps)
             >
               #{task.tag}
             </span>
+
+            {task.source === 'v1' && (
+              <span
+                className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-mono"
+                style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8' }}
+              >
+                v1
+              </span>
+            )}
           </div>
         </button>
       </div>

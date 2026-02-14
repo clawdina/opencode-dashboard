@@ -12,6 +12,15 @@ interface NewTicketModalProps {
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '';
 const API_KEY = process.env.NEXT_PUBLIC_DASHBOARD_API_KEY || '';
 
+const PROJECTS = [
+  'the-culture',
+  'bell-and-the-void',
+  'clawdina-tales',
+  'opencode-dashboard',
+  'crypto-attestation',
+  'infrastructure',
+] as const;
+
 function authHeaders(): HeadersInit {
   const headers: HeadersInit = { 'Content-Type': 'application/json' };
   if (API_KEY) {
@@ -90,10 +99,11 @@ export function NewTicketModal({ open, onClose, onCreated }: NewTicketModalProps
     setError(null);
 
     try {
-      const body: Record<string, string> = {
-        content: project.trim() ? `[${project.trim()}] ${trimmed}` : trimmed,
+      const body: Record<string, string | null> = {
+        content: trimmed,
         priority,
         status: 'pending',
+        project: project || null,
       };
 
       const res = await fetch(`${API_BASE}/api/todos`, {
@@ -231,13 +241,11 @@ export function NewTicketModal({ open, onClose, onCreated }: NewTicketModalProps
               >
                 Project
               </label>
-              <input
+              <select
                 id="ticket-project"
-                type="text"
                 value={project}
                 onChange={(e) => setProject(e.target.value)}
-                placeholder="Optional"
-                className="w-full rounded-lg px-3 py-2 text-sm transition-colors placeholder:opacity-40 focus:outline-none focus:ring-2"
+                className="w-full rounded-lg px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 appearance-none"
                 style={{
                   background: 'var(--bg)',
                   border: '1px solid var(--border)',
@@ -245,7 +253,12 @@ export function NewTicketModal({ open, onClose, onCreated }: NewTicketModalProps
                   // @ts-expect-error CSS custom property
                   '--tw-ring-color': 'var(--accent)',
                 }}
-              />
+              >
+                <option value="">None</option>
+                {PROJECTS.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
             </div>
           </div>
 

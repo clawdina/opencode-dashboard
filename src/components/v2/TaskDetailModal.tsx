@@ -76,7 +76,9 @@ export function TaskDetailModal({
     setDetails(task.details || '');
     setTestStrategy(task.test_strategy || '');
     setError(null);
-    void onFetchSubtasks(task.id);
+    if (task.source !== 'v1') {
+      void onFetchSubtasks(task.id);
+    }
   }, [open, task, onFetchSubtasks]);
 
   const dependencyTasks = useMemo(() => {
@@ -93,6 +95,8 @@ export function TaskDetailModal({
   if (!open || !task) {
     return null;
   }
+
+  const isV1Task = task.source === 'v1';
 
   return (
     <div
@@ -130,6 +134,7 @@ export function TaskDetailModal({
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
+              disabled={isV1Task}
               className="w-full rounded-lg px-3 py-2 text-sm"
               style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
             />
@@ -143,10 +148,17 @@ export function TaskDetailModal({
               rows={3}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
+              disabled={isV1Task}
               className="w-full rounded-lg px-3 py-2 text-sm resize-none"
               style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
             />
           </div>
+
+          {isV1Task && (
+            <p className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>
+              This is a V1 legacy todo. Only status and priority can be edited.
+            </p>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -184,119 +196,127 @@ export function TaskDetailModal({
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text)' }}>
-              Details (Markdown)
-            </label>
-            <textarea
-              rows={5}
-              value={details}
-              onChange={(event) => setDetails(event.target.value)}
-              className="w-full rounded-lg px-3 py-2 text-sm font-mono resize-y"
-              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
-            />
-          </div>
+          {!isV1Task && (
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text)' }}>
+                Details (Markdown)
+              </label>
+              <textarea
+                rows={5}
+                value={details}
+                onChange={(event) => setDetails(event.target.value)}
+                className="w-full rounded-lg px-3 py-2 text-sm font-mono resize-y"
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
+              />
+            </div>
+          )}
 
-          <div>
-            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text)' }}>
-              Test Strategy
-            </label>
-            <textarea
-              rows={3}
-              value={testStrategy}
-              onChange={(event) => setTestStrategy(event.target.value)}
-              className="w-full rounded-lg px-3 py-2 text-sm resize-none"
-              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
-            />
-          </div>
+          {!isV1Task && (
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text)' }}>
+                Test Strategy
+              </label>
+              <textarea
+                rows={3}
+                value={testStrategy}
+                onChange={(event) => setTestStrategy(event.target.value)}
+                className="w-full rounded-lg px-3 py-2 text-sm resize-none"
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
+              />
+            </div>
+          )}
 
-          <div className="rounded-lg border p-3" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
-            <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-strong)' }}>
-              Dependencies
-            </h4>
-            {dependencyTasks.length === 0 ? (
-              <p className="text-xs" style={{ color: 'var(--muted)' }}>
-                No linked dependencies.
-              </p>
-            ) : (
-              <div className="space-y-1.5">
-                {dependencyTasks.map((dependency) => (
-                  <div key={dependency.id} className="flex items-center justify-between rounded px-2 py-1">
-                    <span className="text-sm" style={{ color: 'var(--text)' }}>
-                      {dependency.title}
+          {!isV1Task && (
+            <div className="rounded-lg border p-3" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
+              <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-strong)' }}>
+                Dependencies
+              </h4>
+              {dependencyTasks.length === 0 ? (
+                <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                  No linked dependencies.
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  {dependencyTasks.map((dependency) => (
+                    <div key={dependency.id} className="flex items-center justify-between rounded px-2 py-1">
+                      <span className="text-sm" style={{ color: 'var(--text)' }}>
+                        {dependency.title}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-xs" style={{ color: statusColors[dependency.status] }}>
+                        <span
+                          className="h-1.5 w-1.5 rounded-full"
+                          style={{ background: statusColors[dependency.status] }}
+                        />
+                        {dependency.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!isV1Task && (
+            <div className="rounded-lg border p-3" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
+              <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-strong)' }}>
+                Subtasks
+              </h4>
+              <div className="space-y-2">
+                {subtasks.length === 0 && (
+                  <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                    No subtasks yet.
+                  </p>
+                )}
+                {subtasks.map((subtask) => (
+                  <div key={subtask.id} className="flex items-center gap-2 rounded px-2 py-1" style={{ background: 'var(--bg)' }}>
+                    <input
+                      type="checkbox"
+                      checked={subtask.status === 'done'}
+                      onChange={(event) => {
+                        void onUpdateSubtask(task.id, subtask.id, {
+                          status: event.target.checked ? 'done' : 'pending',
+                        });
+                      }}
+                    />
+                    <span className="text-sm flex-1" style={{ color: 'var(--text)' }}>
+                      {subtask.title}
                     </span>
-                    <span className="inline-flex items-center gap-1 text-xs" style={{ color: statusColors[dependency.status] }}>
-                      <span
-                        className="h-1.5 w-1.5 rounded-full"
-                        style={{ background: statusColors[dependency.status] }}
-                      />
-                      {dependency.status}
-                    </span>
+                    <button
+                      onClick={() => void onDeleteSubtask(task.id, subtask.id)}
+                      className="rounded px-2 py-1 text-xs"
+                      style={{ color: 'var(--danger)' }}
+                    >
+                      Delete
+                    </button>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
 
-          <div className="rounded-lg border p-3" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
-            <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-strong)' }}>
-              Subtasks
-            </h4>
-            <div className="space-y-2">
-              {subtasks.length === 0 && (
-                <p className="text-xs" style={{ color: 'var(--muted)' }}>
-                  No subtasks yet.
-                </p>
-              )}
-              {subtasks.map((subtask) => (
-                <div key={subtask.id} className="flex items-center gap-2 rounded px-2 py-1" style={{ background: 'var(--bg)' }}>
-                  <input
-                    type="checkbox"
-                    checked={subtask.status === 'done'}
-                    onChange={(event) => {
-                      void onUpdateSubtask(task.id, subtask.id, {
-                        status: event.target.checked ? 'done' : 'pending',
-                      });
-                    }}
-                  />
-                  <span className="text-sm flex-1" style={{ color: 'var(--text)' }}>
-                    {subtask.title}
-                  </span>
-                  <button
-                    onClick={() => void onDeleteSubtask(task.id, subtask.id)}
-                    className="rounded px-2 py-1 text-xs"
-                    style={{ color: 'var(--danger)' }}
-                  >
-                    Delete
-                  </button>
-                </div>
-              ))}
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  value={newSubtaskTitle}
+                  onChange={(event) => setNewSubtaskTitle(event.target.value)}
+                  placeholder="Add subtask"
+                  className="flex-1 rounded-lg px-3 py-2 text-sm"
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                />
+                <button
+                  onClick={() => {
+                    if (!newSubtaskTitle.trim()) {
+                      return;
+                    }
+                    void onCreateSubtask(task.id, { title: newSubtaskTitle.trim() });
+                    setNewSubtaskTitle('');
+                  }}
+                  className="rounded-lg px-3 py-2 text-sm flex items-center gap-1"
+                  style={{ background: 'var(--accent-subtle)', color: 'var(--accent)' }}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add
+                </button>
+              </div>
             </div>
-
-            <div className="mt-3 flex items-center gap-2">
-              <input
-                value={newSubtaskTitle}
-                onChange={(event) => setNewSubtaskTitle(event.target.value)}
-                placeholder="Add subtask"
-                className="flex-1 rounded-lg px-3 py-2 text-sm"
-                style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
-              />
-              <button
-                onClick={() => {
-                  if (!newSubtaskTitle.trim()) {
-                    return;
-                  }
-                  void onCreateSubtask(task.id, { title: newSubtaskTitle.trim() });
-                  setNewSubtaskTitle('');
-                }}
-                className="rounded-lg px-3 py-2 text-sm flex items-center gap-1"
-                style={{ background: 'var(--accent-subtle)', color: 'var(--accent)' }}
-              >
-                <Plus className="h-4 w-4" />
-                Add
-              </button>
-            </div>
-          </div>
+          )}
 
           {task.complexity_score !== null && (
             <p className="text-xs" style={{ color: 'var(--muted)' }}>
@@ -314,7 +334,7 @@ export function TaskDetailModal({
               if (!confirmed) {
                 return;
               }
-              void onDelete(task.id);
+              void onDelete(task.id, task.original_id);
             }}
             className="rounded-lg px-3 py-1.5 text-sm font-medium flex items-center gap-1"
             style={{ color: 'var(--danger)', background: 'rgba(239,68,68,0.12)' }}
@@ -336,14 +356,21 @@ export function TaskDetailModal({
                 setSaving(true);
                 setError(null);
                 try {
-                  await onSave(task.id, {
-                    title: title.trim(),
-                    description: description.trim() || null,
-                    status,
-                    priority,
-                    details: details.trim() || null,
-                    test_strategy: testStrategy.trim() || null,
-                  });
+                  const saveUpdates: Partial<Task> = isV1Task
+                    ? {
+                        status,
+                        priority,
+                        original_id: task.original_id,
+                      }
+                    : {
+                        title: title.trim(),
+                        description: description.trim() || null,
+                        status,
+                        priority,
+                        details: details.trim() || null,
+                        test_strategy: testStrategy.trim() || null,
+                      };
+                  await onSave(task.id, saveUpdates);
                   onClose();
                 } catch {
                   setError('Failed to save task updates.');
@@ -351,7 +378,7 @@ export function TaskDetailModal({
                   setSaving(false);
                 }
               }}
-              disabled={!title.trim() || saving}
+              disabled={(!isV1Task && !title.trim()) || saving}
               className="rounded-lg px-4 py-1.5 text-sm font-medium disabled:opacity-40"
               style={{ background: 'var(--accent)', color: '#fff' }}
             >

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import db from '@/lib/db';
 import { checkRateLimit, corsHeaders, validateAuth } from '@/lib/auth/middleware';
+import type { Task, Todo } from '@/lib/db/types';
 
 const TaskStatusSchema = z.enum([
   'pending',
@@ -36,12 +37,64 @@ const CreateTaskSchema = z.object({
 });
 
 const UpdateTaskSchema = CreateTaskSchema.partial().extend({
-  id: z.number().int().positive(),
+  id: z.number().int(),
+  original_id: z.string().optional(),
 });
 
 const DeleteTaskSchema = z.object({
-  id: z.number().int().positive(),
+  id: z.number().int(),
+  original_id: z.string().optional(),
 });
+
+const v1StatusMap: Record<Todo['status'], Task['status']> = {
+  pending: 'pending',
+  in_progress: 'in_progress',
+  blocked: 'blocked',
+  completed: 'done',
+  cancelled: 'cancelled',
+  icebox: 'deferred',
+};
+
+const v2StatusToV1: Record<Task['status'], Todo['status']> = {
+  pending: 'pending',
+  in_progress: 'in_progress',
+  blocked: 'blocked',
+  done: 'completed',
+  deferred: 'icebox',
+  cancelled: 'cancelled',
+  review: 'in_progress',
+};
+
+function todoIdToNegative(todoId: string): number {
+  let hash = 0;
+  for (let index = 0; index < todoId.length; index += 1) {
+    const charCode = todoId.charCodeAt(index);
+    hash = (hash << 5) - hash + charCode;
+    hash &= hash;
+  }
+  return -(Math.abs(hash) || 1);
+}
+
+function todoToTask(todo: Todo) {
+  return {
+    id: todoIdToNegative(todo.id),
+    tag: todo.project || 'v1-legacy',
+    title: todo.content,
+    description: null,
+    status: v1StatusMap[todo.status] || 'pending',
+    priority: todo.priority,
+    dependencies: null,
+    details: null,
+    test_strategy: null,
+    complexity_score: null,
+    assigned_agent_id: todo.agent || null,
+    linear_issue_id: null,
+    source: 'v1' as const,
+    original_id: todo.id,
+    created_at: todo.created_at,
+    updated_at: todo.updated_at,
+  };
+}
 
 function normalizeDependencies(
   dependencies: string | number[] | null | undefined
@@ -70,7 +123,19 @@ export async function GET(request: NextRequest) {
     const statusParam = searchParams.get('status');
     const statuses = statusParam ? statusParam.split(',').map((value) => value.trim()) : [];
 
-    let tasks = db.getAllTasks(tag);
+    const baseTasks = tag === 'all' ? db.getAllTasks() : db.getAllTasks(tag);
+    const tasksWithSource = baseTasks.map((task) => ({ ...task, source: 'v2' as const }));
+
+    const todos = db.getAllTodos();
+    const filteredTodos = todos.filter((todo) => {
+      if (tag === 'all' || tag === 'master') {
+        return true;
+      }
+      return todo.project === tag;
+    });
+    const v1Tasks = filteredTodos.map(todoToTask);
+
+    let tasks = [...tasksWithSource, ...v1Tasks];
     if (statuses.length > 0) {
       const statusSet = new Set(statuses);
       tasks = tasks.filter((task) => statusSet.has(task.status));
@@ -163,6 +228,32 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const data = UpdateTaskSchema.parse(body);
 
+    if (data.id < 0) {
+      if (!data.original_id) {
+        return NextResponse.json(
+          { error: 'original_id is required for v1 task updates' },
+          { status: 400, headers: corsHeaders(request) }
+        );
+      }
+
+      const todoUpdates: Partial<Omit<Todo, 'id' | 'created_at'>> = {};
+      if (data.status !== undefined) {
+        todoUpdates.status = v2StatusToV1[data.status] || 'pending';
+      }
+      if (data.priority !== undefined) {
+        todoUpdates.priority = data.priority;
+      }
+
+      const todo = db.updateTodo(data.original_id, todoUpdates);
+      return NextResponse.json(
+        { task: todoToTask(todo) },
+        {
+          status: 200,
+          headers: corsHeaders(request),
+        }
+      );
+    }
+
     const updates: Partial<Parameters<typeof db.updateTask>[1]> = {
       ...(data.tag !== undefined ? { tag: data.tag } : {}),
       ...(data.title !== undefined ? { title: data.title } : {}),
@@ -220,6 +311,25 @@ export async function DELETE(request: NextRequest) {
   try {
     const body = await request.json();
     const data = DeleteTaskSchema.parse(body);
+
+    if (data.id < 0) {
+      if (!data.original_id) {
+        return NextResponse.json(
+          { error: 'original_id is required for v1 task deletion' },
+          { status: 400, headers: corsHeaders(request) }
+        );
+      }
+
+      const deletedTodo = db.deleteTodo(data.original_id);
+      return NextResponse.json(
+        { success: deletedTodo },
+        {
+          status: deletedTodo ? 200 : 404,
+          headers: corsHeaders(request),
+        }
+      );
+    }
+
     const deleted = db.deleteTask(data.id);
 
     return NextResponse.json(

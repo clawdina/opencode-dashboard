@@ -4,6 +4,10 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useV2TasksStore } from '@/stores/v2Tasks';
 import type { Task, Subtask } from '@/lib/db/types';
 
+interface V2TaskItem extends Task {
+  original_id?: string;
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '';
 const POLL_INTERVAL = 5000;
 const API_KEY = process.env.NEXT_PUBLIC_DASHBOARD_API_KEY || '';
@@ -65,7 +69,7 @@ export function useV2Tasks() {
       if (!res.ok) {
         throw new Error('Failed to fetch tasks');
       }
-      const data = (await res.json()) as { tasks: Task[] };
+      const data = (await res.json()) as { tasks: V2TaskItem[] };
       setTasks(data.tasks || []);
       return data.tasks || [];
     },
@@ -81,7 +85,7 @@ export function useV2Tasks() {
       if (!res.ok) {
         throw new Error('Failed to fetch next task');
       }
-      const data = (await res.json()) as { task: Task | null };
+      const data = (await res.json()) as { task: V2TaskItem | null };
       setNextTask(data.task ?? null);
       return data.task ?? null;
     },
@@ -126,7 +130,7 @@ export function useV2Tasks() {
       if (!res.ok) {
         throw new Error('Failed to create task');
       }
-      const data = (await res.json()) as { task: Task };
+      const data = (await res.json()) as { task: V2TaskItem };
       await fetchTasks(taskData.tag || activeTag);
       await fetchNextTask(taskData.tag || activeTag);
       return data.task;
@@ -135,7 +139,7 @@ export function useV2Tasks() {
   );
 
   const updateTask = useCallback(
-    async (id: number, updates: UpdateTaskData) => {
+    async (id: number, updates: UpdateTaskData & { original_id?: string }) => {
       const res = await fetch(`${API_BASE}/api/v2/tasks`, {
         method: 'PUT',
         headers: authHeaders(),
@@ -144,7 +148,7 @@ export function useV2Tasks() {
       if (!res.ok) {
         throw new Error('Failed to update task');
       }
-      const data = (await res.json()) as { task: Task };
+      const data = (await res.json()) as { task: V2TaskItem };
       await fetchTasks(data.task.tag || activeTag);
       await fetchNextTask(data.task.tag || activeTag);
       return data.task;
@@ -153,11 +157,11 @@ export function useV2Tasks() {
   );
 
   const deleteTask = useCallback(
-    async (id: number) => {
+    async (id: number, original_id?: string) => {
       const res = await fetch(`${API_BASE}/api/v2/tasks`, {
         method: 'DELETE',
         headers: authHeaders(),
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id, ...(original_id ? { original_id } : {}) }),
       });
       if (!res.ok) {
         throw new Error('Failed to delete task');

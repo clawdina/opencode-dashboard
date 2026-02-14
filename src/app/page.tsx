@@ -108,7 +108,7 @@ export default function Dashboard() {
               </button>
 
               <Link
-                href="/v2"
+                href={`${process.env.NEXT_PUBLIC_API_BASE || ''}/v2`}
                 className="rounded-lg px-3 py-1.5 text-xs font-semibold tracking-wide transition-colors"
                 style={{
                   background: 'var(--accent-subtle)',

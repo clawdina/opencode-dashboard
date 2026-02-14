@@ -1,21 +1,25 @@
 import { create } from 'zustand';
 import type { Task, Subtask } from '@/lib/db/types';
 
+interface V2TaskItem extends Task {
+  original_id?: string;
+}
+
 interface V2TasksState {
-  tasks: Task[];
+  tasks: V2TaskItem[];
   subtasks: Record<number, Subtask[]>;
   activeTag: string;
   tags: string[];
-  nextTask: Task | null;
+  nextTask: V2TaskItem | null;
   isLoading: boolean;
 
-  setTasks: (tasks: Task[]) => void;
+  setTasks: (tasks: V2TaskItem[]) => void;
   setSubtasks: (taskId: number, subtasks: Subtask[]) => void;
   setActiveTag: (tag: string) => void;
   setTags: (tags: string[]) => void;
-  setNextTask: (task: Task | null) => void;
-  addTask: (task: Task) => void;
-  updateTask: (id: number, updates: Partial<Task>) => void;
+  setNextTask: (task: V2TaskItem | null) => void;
+  addTask: (task: V2TaskItem) => void;
+  updateTask: (id: number, updates: Partial<V2TaskItem>) => void;
   removeTask: (id: number) => void;
   setIsLoading: (isLoading: boolean) => void;
 }

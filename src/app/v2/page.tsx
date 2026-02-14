@@ -50,7 +50,7 @@ export default function V2DashboardPage() {
   }, []);
 
   useEffect(() => {
-    const missingSubtasks = tasks.filter((task) => subtasks[task.id] === undefined);
+    const missingSubtasks = tasks.filter((task) => task.source !== 'v1' && subtasks[task.id] === undefined);
     for (const task of missingSubtasks) {
       void fetchSubtasks(task.id);
     }
@@ -67,8 +67,12 @@ export default function V2DashboardPage() {
   };
 
   const handleStatusChange = async (id: number, status: Task['status']) => {
+    const task = tasks.find((item) => item.id === id);
     updateTaskInStore(id, { status });
-    await updateTask(id, { status });
+    await updateTask(id, {
+      status,
+      ...(task?.original_id ? { original_id: task.original_id } : {}),
+    });
   };
 
   return (
@@ -105,7 +109,7 @@ export default function V2DashboardPage() {
 
             <div className="flex items-center gap-3">
               <Link
-                href="/"
+                href={`${process.env.NEXT_PUBLIC_API_BASE || ''}/`}
                 className="rounded-lg px-3 py-1.5 text-xs font-semibold tracking-wide transition-colors"
                 style={{
                   background: 'var(--bg-hover)',
@@ -183,7 +187,10 @@ export default function V2DashboardPage() {
                 task={nextTask}
                 onOpenTask={(task) => setSelectedTask(task)}
                 onStartWorking={async (task) => {
-                  await updateTask(task.id, { status: 'in_progress' });
+                  await updateTask(task.id, {
+                    status: 'in_progress',
+                    ...(task.original_id ? { original_id: task.original_id } : {}),
+                  });
                 }}
               />
 
@@ -233,11 +240,15 @@ export default function V2DashboardPage() {
         subtasks={selectedTask ? subtasks[selectedTask.id] || [] : []}
         onClose={() => setSelectedTask(null)}
         onSave={async (taskId, updates) => {
-          await updateTask(taskId, updates);
+          const task = tasks.find((item) => item.id === taskId);
+          await updateTask(taskId, {
+            ...updates,
+            ...(task?.original_id ? { original_id: task.original_id } : {}),
+          });
           await fetchData();
         }}
-        onDelete={async (taskId) => {
-          await deleteTask(taskId);
+        onDelete={async (taskId, originalId) => {
+          await deleteTask(taskId, originalId);
           await fetchData();
           setSelectedTask(null);
         }}
