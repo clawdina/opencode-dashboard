@@ -16,7 +16,7 @@ export interface Todo {
 
 export interface Message {
   id: number;
-  type: 'task_complete' | 'error' | 'state_change' | 'custom';
+  type: 'task_complete' | 'error' | 'state_change' | 'custom' | 'worklog';
   content: string; // encrypted in database, decrypted when retrieved
   todo_id: string | null;
   session_id: string | null;
