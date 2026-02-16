@@ -10,11 +10,13 @@ import { Moon, Sun, Menu, X, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NewTicketModal } from '@/components/kanban/NewTicketModal';
 import { VelocityWidget } from '@/components/sprints/VelocityWidget';
+import { CreateSprintModal } from '@/components/sprints/CreateSprintModal';
 
 export default function Dashboard() {
   const { todos, messages, sprints, activeSprint, setActiveSprint, isConnected } = useDashboardStore();
   const { updateTodoStatus, markMessagesAsRead, fetchData } = usePolling();
   const [newTicketOpen, setNewTicketOpen] = useState(false);
+  const [newSprintOpen, setNewSprintOpen] = useState(false);
   const [isDark, setIsDark] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -100,23 +102,46 @@ export default function Dashboard() {
                 </span>
               </div>
 
-              <select
-                value={activeSprint ?? ''}
-                onChange={(event) => setActiveSprint(event.target.value || null)}
-                className="rounded-md px-2.5 py-1.5 text-xs font-medium outline-none"
-                style={{
-                  background: 'var(--bg-elevated)',
-                  color: 'var(--text)',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                <option value="">All Sprints</option>
-                {sprints.map((sprint) => (
-                  <option key={sprint.id} value={sprint.id}>
-                    {sprint.name}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center">
+                <select
+                  value={activeSprint ?? ''}
+                  onChange={(event) => setActiveSprint(event.target.value || null)}
+                  className="rounded-l-md px-2.5 py-1.5 text-xs font-medium outline-none"
+                  style={{
+                    background: 'var(--bg-elevated)',
+                    color: 'var(--text)',
+                    border: '1px solid var(--border)',
+                    borderRight: 'none',
+                  }}
+                >
+                  <option value="">All Sprints</option>
+                  {sprints.map((sprint) => (
+                    <option key={sprint.id} value={sprint.id}>
+                      {sprint.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setNewSprintOpen(true)}
+                  className="rounded-r-md px-2 py-1.5 transition-colors"
+                  style={{
+                    background: 'var(--bg-elevated)',
+                    color: 'var(--muted)',
+                    border: '1px solid var(--border)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--bg-hover)';
+                    e.currentTarget.style.color = '#14b8a6';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'var(--bg-elevated)';
+                    e.currentTarget.style.color = 'var(--muted)';
+                  }}
+                  title="Create new sprint"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
 
               <button
                 onClick={toggleDark}
@@ -188,6 +213,11 @@ export default function Dashboard() {
               onClose={() => setNewTicketOpen(false)}
               onCreated={() => fetchData()}
             />
+            <CreateSprintModal
+              open={newSprintOpen}
+              onClose={() => setNewSprintOpen(false)}
+              onCreated={() => fetchData()}
+            />
             <KanbanBoard
               todos={todos}
               activeSprintId={activeSprint}
@@ -219,7 +249,11 @@ export default function Dashboard() {
                 }}
               >
                 {selectedSprint ? (
-                  <VelocityWidget sprintId={selectedSprint.id} sprintName={selectedSprint.name} />
+                  <VelocityWidget
+                    sprintId={selectedSprint.id}
+                    sprintName={selectedSprint.name}
+                    sprintStatus={selectedSprint.status}
+                  />
                 ) : null}
                 <div className="min-h-0 flex-1">
                   <MessageFeed

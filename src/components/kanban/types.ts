@@ -9,6 +9,7 @@ export interface Todo {
   comment_count?: number;
   session_id?: string | null;
   completed_at?: number | null;
+  sprints?: Array<{ id: string; name: string }>;
   created_at: number;
   updated_at: number;
 }

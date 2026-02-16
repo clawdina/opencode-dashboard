@@ -533,6 +533,24 @@ const db: DatabaseOperations = {
     return stmt.all(todoId) as Sprint[];
   },
 
+  getTodoSprintMap(): Map<string, Array<{ id: string; name: string }>> {
+    const database = getDatabase();
+    const stmt = database.prepare(`
+      SELECT ts.todo_id, s.id, s.name
+      FROM todo_sprints ts
+      INNER JOIN sprints s ON s.id = ts.sprint_id
+      ORDER BY s.start_date DESC
+    `);
+    const rows = stmt.all() as Array<{ todo_id: string; id: string; name: string }>;
+    const map = new Map<string, Array<{ id: string; name: string }>>();
+    for (const row of rows) {
+      const existing = map.get(row.todo_id) || [];
+      existing.push({ id: row.id, name: row.name });
+      map.set(row.todo_id, existing);
+    }
+    return map;
+  },
+
   getSprintVelocity(sprintId: string): SprintVelocity {
     const sprint = db.getSprint(sprintId);
     if (!sprint) {

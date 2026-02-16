@@ -93,9 +93,11 @@ export async function GET(request: NextRequest) {
     }
 
     const commentCounts = db.getCommentCounts();
+    const sprintMap = db.getTodoSprintMap();
     const todosWithCounts = todos.map((todo) => ({
       ...todo,
       comment_count: commentCounts[todo.id] || 0,
+      sprints: sprintMap.get(todo.id) || [],
     }));
 
     return NextResponse.json(

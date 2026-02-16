@@ -137,6 +137,7 @@ export interface DatabaseOperations {
   removeTodoFromSprint(todoId: string, sprintId: string): void;
   getSprintTodos(sprintId: string): Todo[];
   getTodoSprints(todoId: string): Sprint[];
+  getTodoSprintMap(): Map<string, Array<{ id: string; name: string }>>;
   getSprintVelocity(sprintId: string): SprintVelocity;
 
   // Message operations
