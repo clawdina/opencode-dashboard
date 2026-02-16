@@ -85,8 +85,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const commentCounts = db.getCommentCounts();
+    const todosWithCounts = todos.map((todo) => ({
+      ...todo,
+      comment_count: commentCounts[todo.id] || 0,
+    }));
+
     return NextResponse.json(
-      { todos },
+      { todos: todosWithCounts },
       {
         status: 200,
         headers: corsHeaders(request),

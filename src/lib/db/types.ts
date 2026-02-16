@@ -69,6 +69,14 @@ export interface Subtask {
   created_at: number;
 }
 
+export interface TodoComment {
+  id: number;
+  todo_id: string;
+  body: string;
+  author: string;
+  created_at: number;
+}
+
 /**
  * Database operations interface
  */
@@ -82,6 +90,11 @@ export interface DatabaseOperations {
   hasCircularReference(childId: string, proposedParentId: string): boolean;
   updateTodo(id: string, updates: Partial<Omit<Todo, 'id' | 'created_at'>>): Todo;
   deleteTodo(id: string): boolean;
+
+  createComment(comment: Omit<TodoComment, 'id' | 'created_at'>): TodoComment;
+  getComments(todoId: string): TodoComment[];
+  deleteComment(id: number): boolean;
+  getCommentCounts(): Record<string, number>;
 
   // Message operations
   createMessage(message: Omit<Message, 'id' | 'created_at'>): Message;

@@ -8,6 +8,7 @@ import type {
   Setting,
   Task,
   Subtask,
+  TodoComment,
   DatabaseOperations,
 } from './types';
 
@@ -83,6 +84,14 @@ function initializeDatabase(): Database.Database {
       PRIMARY KEY (task_id, id)
     );
 
+    CREATE TABLE IF NOT EXISTS todo_comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      todo_id TEXT NOT NULL REFERENCES todos(id) ON DELETE CASCADE,
+      body TEXT NOT NULL,
+      author TEXT NOT NULL DEFAULT 'anonymous',
+      created_at INTEGER DEFAULT (unixepoch())
+    );
+
     CREATE INDEX IF NOT EXISTS idx_todos_session_id ON todos(session_id);
     CREATE INDEX IF NOT EXISTS idx_messages_todo_id ON messages(todo_id);
     CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id);
@@ -90,6 +99,7 @@ function initializeDatabase(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_tasks_tag ON tasks(tag);
     CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
     CREATE INDEX IF NOT EXISTS idx_subtasks_task_id ON subtasks(task_id);
+    CREATE INDEX IF NOT EXISTS idx_todo_comments_todo_id ON todo_comments(todo_id);
   `);
 
   // Migration: add project column to todos if not present
@@ -268,6 +278,51 @@ const db: DatabaseOperations = {
     const stmt = database.prepare('DELETE FROM todos WHERE id = ?');
     const result = stmt.run(id);
     return (result.changes ?? 0) > 0;
+  },
+
+  createComment(comment: Omit<TodoComment, 'id' | 'created_at'>): TodoComment {
+    const database = getDatabase();
+    const now = Math.floor(Date.now() / 1000);
+
+    const stmt = database.prepare(`
+      INSERT INTO todo_comments (todo_id, body, author, created_at)
+      VALUES (?, ?, ?, ?)
+    `);
+
+    const result = stmt.run(comment.todo_id, comment.body, comment.author, now);
+
+    return {
+      ...comment,
+      id: Number(result.lastInsertRowid),
+      created_at: now,
+    };
+  },
+
+  getComments(todoId: string): TodoComment[] {
+    const database = getDatabase();
+    const stmt = database.prepare('SELECT * FROM todo_comments WHERE todo_id = ? ORDER BY created_at ASC');
+    return stmt.all(todoId) as TodoComment[];
+  },
+
+  deleteComment(id: number): boolean {
+    const database = getDatabase();
+    const stmt = database.prepare('DELETE FROM todo_comments WHERE id = ?');
+    const result = stmt.run(id);
+    return (result.changes ?? 0) > 0;
+  },
+
+  getCommentCounts(): Record<string, number> {
+    const database = getDatabase();
+    const stmt = database.prepare('SELECT todo_id, COUNT(*) as count FROM todo_comments GROUP BY todo_id');
+    const rows = stmt.all() as Array<{ todo_id: string; count: number }>;
+
+    return rows.reduce(
+      (acc, row) => {
+        acc[row.todo_id] = row.count;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
   },
 
   createMessage(message: Omit<Message, 'id' | 'created_at'>): Message {
@@ -709,4 +764,4 @@ const db: DatabaseOperations = {
 };
 
 export default db;
-export type { Todo, Message, Session, Setting, Task, Subtask, DatabaseOperations };
+export type { Todo, Message, Session, Setting, Task, Subtask, TodoComment, DatabaseOperations };

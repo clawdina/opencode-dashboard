@@ -1,10 +1,12 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { formatDistanceToNow } from 'date-fns';
-import { GripVertical, Clock, User, FolderOpen, ChevronDown, ChevronRight, ListTree } from 'lucide-react';
+import { GripVertical, Clock, User, FolderOpen, ChevronDown, ChevronRight, ListTree, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CommentDrawer } from './CommentDrawer';
 import type { KanbanCardProps, Todo } from './types';
 
 const priorityStyles: Record<Todo['priority'], { bg: string; color: string }> = {
@@ -14,6 +16,13 @@ const priorityStyles: Record<Todo['priority'], { bg: string; color: string }> = 
 };
 
 export function KanbanCard({ todo, isDragging, childCount, isSubtask, isExpanded, onToggleExpand }: KanbanCardProps) {
+  const [commentDrawerOpen, setCommentDrawerOpen] = useState(false);
+  const [commentCount, setCommentCount] = useState(todo.comment_count || 0);
+
+  useEffect(() => {
+    setCommentCount(todo.comment_count || 0);
+  }, [todo.comment_count]);
+
   const {
     attributes,
     listeners,
@@ -150,6 +159,21 @@ export function KanbanCard({ todo, isDragging, childCount, isSubtask, isExpanded
                 {todo.agent}
               </span>
             )}
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCommentDrawerOpen(true);
+              }}
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs transition-colors"
+              style={{ color: 'var(--muted)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              {commentCount > 0 && <span>{commentCount}</span>}
+            </button>
             
             {!isSubtask && (
               <span
@@ -163,6 +187,13 @@ export function KanbanCard({ todo, isDragging, childCount, isSubtask, isExpanded
           </div>
         </div>
       </div>
+
+      <CommentDrawer
+        todoId={todo.id}
+        open={commentDrawerOpen}
+        onClose={() => setCommentDrawerOpen(false)}
+        onCommentCreated={() => setCommentCount((prev) => prev + 1)}
+      />
     </div>
   );
 }

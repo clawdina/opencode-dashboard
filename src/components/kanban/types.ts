@@ -6,6 +6,7 @@ export interface Todo {
   agent?: string | null;
   project?: string | null;
   parent_id?: string | null;
+  comment_count?: number;
   session_id?: string | null;
   created_at: number;
   updated_at: number;
