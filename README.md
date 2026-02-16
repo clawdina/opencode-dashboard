@@ -643,6 +643,71 @@ openclaw cron rm <id>        # Delete a job
 
 ---
 
+## Task Hierarchy, Comments & Sprints
+
+Use the hierarchy APIs to model parent tasks with nested subtasks (up to depth 3), attach markdown-ready comments to any task, and track sprint velocity from assigned work.
+
+### Parent-child tasks
+
+Create a top-level task first, then create children with `parent_id` or via the subtasks route:
+
+```bash
+curl -X POST http://127.0.0.1:3000/api/todos \
+  -H "Authorization: Bearer $DASHBOARD_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"content":"Parent task","status":"pending","priority":"high"}'
+
+curl -X POST http://127.0.0.1:3000/api/todos/<parent-id>/subtasks \
+  -H "Authorization: Bearer $DASHBOARD_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"content":"Child task","priority":"medium"}'
+```
+
+Child status updates are independent, so a child can move to `in_progress` while its parent remains `pending`.
+
+### Comments
+
+Add comments with markdown text in `body` and an optional `author`:
+
+```bash
+curl -X POST http://127.0.0.1:3000/api/todos/<todo-id>/comments \
+  -H "Authorization: Bearer $DASHBOARD_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"body":"**Ready for review**","author":"alex"}'
+```
+
+### Sprints and velocity
+
+Create a sprint by posting a UNIX start/end range, assign tasks with `sprint_id` on todo create/update, then query sprint velocity:
+
+```bash
+curl -X POST http://127.0.0.1:3000/api/sprints \
+  -H "Authorization: Bearer $DASHBOARD_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Sprint 1","start_date":1735689600,"end_date":1736899199,"status":"active"}'
+```
+
+Velocity points are priority-weighted (`high=5`, `medium=3`, `low=1`) and reported by `/api/sprints/<id>/velocity`.
+
+### Hierarchy/comments/sprint routes
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/todos/[id]/subtasks` | GET/POST | List/create subtasks |
+| `/api/todos/[id]/comments` | GET/POST | List/create comments |
+| `/api/sprints` | GET/POST | List/create sprints |
+| `/api/sprints/[id]/velocity` | GET | Sprint velocity data |
+
+### Seed sample data
+
+Populate sample parents, children, comments, and sprint assignments:
+
+```bash
+bun run seed
+```
+
+---
+
 ## Environment Variables
 
 | Variable | Required | Default | Description |
