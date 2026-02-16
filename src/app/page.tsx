@@ -6,12 +6,13 @@ import { KanbanBoard } from '@/components/kanban';
 import { MessageFeed } from '@/components/messages';
 import { useDashboardStore } from '@/stores/dashboard';
 import { usePolling } from '@/hooks/usePolling';
-import { Activity, Moon, Sun, Menu, X, Plus } from 'lucide-react';
+import { Moon, Sun, Menu, X, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NewTicketModal } from '@/components/kanban/NewTicketModal';
+import { VelocityWidget } from '@/components/sprints/VelocityWidget';
 
 export default function Dashboard() {
-  const { todos, messages, isConnected } = useDashboardStore();
+  const { todos, messages, sprints, activeSprint, setActiveSprint, isConnected } = useDashboardStore();
   const { updateTodoStatus, markMessagesAsRead, fetchData } = usePolling();
   const [newTicketOpen, setNewTicketOpen] = useState(false);
   const [isDark, setIsDark] = useState(true);
@@ -45,6 +46,8 @@ export default function Dashboard() {
     markMessagesAsRead(ids);
     useDashboardStore.getState().markMessagesAsRead(ids);
   };
+
+  const selectedSprint = activeSprint ? sprints.find((sprint) => sprint.id === activeSprint) : null;
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
@@ -96,6 +99,24 @@ export default function Dashboard() {
                   {isConnected ? 'Connected' : 'Disconnected'}
                 </span>
               </div>
+
+              <select
+                value={activeSprint ?? ''}
+                onChange={(event) => setActiveSprint(event.target.value || null)}
+                className="rounded-md px-2.5 py-1.5 text-xs font-medium outline-none"
+                style={{
+                  background: 'var(--bg-elevated)',
+                  color: 'var(--text)',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                <option value="">All Sprints</option>
+                {sprints.map((sprint) => (
+                  <option key={sprint.id} value={sprint.id}>
+                    {sprint.name}
+                  </option>
+                ))}
+              </select>
 
               <button
                 onClick={toggleDark}
@@ -169,6 +190,7 @@ export default function Dashboard() {
             />
             <KanbanBoard
               todos={todos}
+              activeSprintId={activeSprint}
               onStatusChange={handleStatusChange}
               isLoading={isLoading}
             />
@@ -189,18 +211,23 @@ export default function Dashboard() {
           >
             <div className="h-full md:sticky md:top-24">
               <div
-                className="h-[calc(100vh-8rem)] md:h-[calc(100vh-7rem)] rounded-xl p-4"
+                className="h-[calc(100vh-8rem)] md:h-[calc(100vh-7rem)] rounded-xl p-4 flex flex-col"
                 style={{
                   background: 'var(--card)',
                   border: '1px solid var(--border)',
                   boxShadow: 'var(--shadow-md)',
                 }}
               >
-                <MessageFeed
-                  messages={messages}
-                  onMarkAsRead={handleMarkAsRead}
-                  isLoading={isLoading}
-                />
+                {selectedSprint ? (
+                  <VelocityWidget sprintId={selectedSprint.id} sprintName={selectedSprint.name} />
+                ) : null}
+                <div className="min-h-0 flex-1">
+                  <MessageFeed
+                    messages={messages}
+                    onMarkAsRead={handleMarkAsRead}
+                    isLoading={isLoading}
+                  />
+                </div>
               </div>
             </div>
           </div>

@@ -77,6 +77,25 @@ export interface TodoComment {
   created_at: number;
 }
 
+export interface Sprint {
+  id: string;
+  name: string;
+  start_date: number;
+  end_date: number;
+  goal: string | null;
+  status: 'planning' | 'active' | 'completed';
+  created_at: number;
+  updated_at: number;
+}
+
+export interface SprintVelocity {
+  sprint_id: string;
+  sprint_name: string;
+  total_points: number;
+  completed_points: number;
+  daily_progress: Array<{ date: string; completed: number; remaining: number }>;
+}
+
 /**
  * Database operations interface
  */
@@ -95,6 +114,16 @@ export interface DatabaseOperations {
   getComments(todoId: string): TodoComment[];
   deleteComment(id: number): boolean;
   getCommentCounts(): Record<string, number>;
+
+  createSprint(sprint: Omit<Sprint, 'created_at' | 'updated_at'>): Sprint;
+  getSprint(id: string): Sprint | null;
+  getAllSprints(): Sprint[];
+  updateSprint(id: string, updates: Partial<Omit<Sprint, 'id' | 'created_at'>>): Sprint;
+  assignTodoToSprint(todoId: string, sprintId: string): void;
+  removeTodoFromSprint(todoId: string, sprintId: string): void;
+  getSprintTodos(sprintId: string): Todo[];
+  getTodoSprints(todoId: string): Sprint[];
+  getSprintVelocity(sprintId: string): SprintVelocity;
 
   // Message operations
   createMessage(message: Omit<Message, 'id' | 'created_at'>): Message;

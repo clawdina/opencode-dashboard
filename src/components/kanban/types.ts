@@ -14,6 +14,7 @@ export interface Todo {
 
 export interface KanbanBoardProps {
   todos: Todo[];
+  activeSprintId?: string | null;
   onStatusChange: (id: string, newStatus: Todo['status']) => void;
   isLoading?: boolean;
 }

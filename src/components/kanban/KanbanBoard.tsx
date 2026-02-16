@@ -21,7 +21,7 @@ import type { KanbanBoardProps, Todo } from './types';
 
 const columns: Todo['status'][] = ['pending', 'in_progress', 'blocked', 'completed', 'icebox'];
 
-export function KanbanBoard({ todos, onStatusChange, isLoading }: KanbanBoardProps) {
+export function KanbanBoard({ todos, activeSprintId, onStatusChange, isLoading }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [showNewTicket, setShowNewTicket] = useState(false);
@@ -174,6 +174,15 @@ export function KanbanBoard({ todos, onStatusChange, isLoading }: KanbanBoardPro
           </select>
           </>
         )}
+
+        {activeSprintId ? (
+          <span
+            className="ml-auto rounded-md px-2 py-1 text-xs font-medium"
+            style={{ background: 'var(--accent-subtle)', color: 'var(--accent)' }}
+          >
+            Sprint Filter Active
+          </span>
+        ) : null}
       </div>
 
       <NewTicketModal

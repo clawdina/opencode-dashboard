@@ -9,6 +9,8 @@ import type {
   Task,
   Subtask,
   TodoComment,
+  Sprint,
+  SprintVelocity,
   DatabaseOperations,
 } from './types';
 
@@ -92,6 +94,23 @@ function initializeDatabase(): Database.Database {
       created_at INTEGER DEFAULT (unixepoch())
     );
 
+    CREATE TABLE IF NOT EXISTS sprints (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      start_date INTEGER NOT NULL,
+      end_date INTEGER NOT NULL,
+      goal TEXT,
+      status TEXT DEFAULT 'planning',
+      created_at INTEGER DEFAULT (unixepoch()),
+      updated_at INTEGER DEFAULT (unixepoch())
+    );
+
+    CREATE TABLE IF NOT EXISTS todo_sprints (
+      todo_id TEXT NOT NULL REFERENCES todos(id) ON DELETE CASCADE,
+      sprint_id TEXT NOT NULL REFERENCES sprints(id) ON DELETE CASCADE,
+      PRIMARY KEY (todo_id, sprint_id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_todos_session_id ON todos(session_id);
     CREATE INDEX IF NOT EXISTS idx_messages_todo_id ON messages(todo_id);
     CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id);
@@ -100,6 +119,8 @@ function initializeDatabase(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
     CREATE INDEX IF NOT EXISTS idx_subtasks_task_id ON subtasks(task_id);
     CREATE INDEX IF NOT EXISTS idx_todo_comments_todo_id ON todo_comments(todo_id);
+    CREATE INDEX IF NOT EXISTS idx_todo_sprints_sprint_id ON todo_sprints(sprint_id);
+    CREATE INDEX IF NOT EXISTS idx_todo_sprints_todo_id ON todo_sprints(todo_id);
   `);
 
   // Migration: add project column to todos if not present
@@ -323,6 +344,169 @@ const db: DatabaseOperations = {
       },
       {} as Record<string, number>
     );
+  },
+
+  createSprint(sprint: Omit<Sprint, 'created_at' | 'updated_at'>): Sprint {
+    const database = getDatabase();
+    const now = Math.floor(Date.now() / 1000);
+
+    const stmt = database.prepare(`
+      INSERT INTO sprints (id, name, start_date, end_date, goal, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(sprint.id, sprint.name, sprint.start_date, sprint.end_date, sprint.goal, sprint.status, now, now);
+
+    return {
+      ...sprint,
+      created_at: now,
+      updated_at: now,
+    };
+  },
+
+  getSprint(id: string): Sprint | null {
+    const database = getDatabase();
+    const stmt = database.prepare('SELECT * FROM sprints WHERE id = ?');
+    return (stmt.get(id) as Sprint) || null;
+  },
+
+  getAllSprints(): Sprint[] {
+    const database = getDatabase();
+    const stmt = database.prepare('SELECT * FROM sprints ORDER BY start_date DESC, created_at DESC');
+    return stmt.all() as Sprint[];
+  },
+
+  updateSprint(id: string, updates: Partial<Omit<Sprint, 'id' | 'created_at'>>): Sprint {
+    const database = getDatabase();
+    const now = Math.floor(Date.now() / 1000);
+
+    const sprint = db.getSprint(id);
+    if (!sprint) {
+      throw new Error(`Sprint with id ${id} not found`);
+    }
+
+    const updated: Sprint = { ...sprint, ...updates, updated_at: now };
+
+    const stmt = database.prepare(`
+      UPDATE sprints
+      SET name = ?, start_date = ?, end_date = ?, goal = ?, status = ?, updated_at = ?
+      WHERE id = ?
+    `);
+
+    stmt.run(updated.name, updated.start_date, updated.end_date, updated.goal, updated.status, now, id);
+
+    return updated;
+  },
+
+  assignTodoToSprint(todoId: string, sprintId: string): void {
+    const database = getDatabase();
+
+    const todo = db.getTodo(todoId);
+    if (!todo) {
+      throw new Error(`Todo with id ${todoId} not found`);
+    }
+
+    const sprint = db.getSprint(sprintId);
+    if (!sprint) {
+      throw new Error(`Sprint with id ${sprintId} not found`);
+    }
+
+    const stmt = database.prepare(`
+      INSERT INTO todo_sprints (todo_id, sprint_id)
+      VALUES (?, ?)
+      ON CONFLICT(todo_id, sprint_id) DO NOTHING
+    `);
+
+    stmt.run(todoId, sprintId);
+  },
+
+  removeTodoFromSprint(todoId: string, sprintId: string): void {
+    const database = getDatabase();
+    const stmt = database.prepare('DELETE FROM todo_sprints WHERE todo_id = ? AND sprint_id = ?');
+    stmt.run(todoId, sprintId);
+  },
+
+  getSprintTodos(sprintId: string): Todo[] {
+    const database = getDatabase();
+    const stmt = database.prepare(`
+      SELECT t.*
+      FROM todos t
+      INNER JOIN todo_sprints ts ON ts.todo_id = t.id
+      WHERE ts.sprint_id = ?
+      ORDER BY t.created_at DESC
+    `);
+
+    return stmt.all(sprintId) as Todo[];
+  },
+
+  getTodoSprints(todoId: string): Sprint[] {
+    const database = getDatabase();
+    const stmt = database.prepare(`
+      SELECT s.*
+      FROM sprints s
+      INNER JOIN todo_sprints ts ON ts.sprint_id = s.id
+      WHERE ts.todo_id = ?
+      ORDER BY s.start_date DESC, s.created_at DESC
+    `);
+
+    return stmt.all(todoId) as Sprint[];
+  },
+
+  getSprintVelocity(sprintId: string): SprintVelocity {
+    const sprint = db.getSprint(sprintId);
+    if (!sprint) {
+      throw new Error(`Sprint with id ${sprintId} not found`);
+    }
+
+    const todos = db.getSprintTodos(sprintId);
+    const priorityPoints: Record<Todo['priority'], number> = {
+      low: 1,
+      medium: 3,
+      high: 5,
+    };
+
+    const totalPoints = todos.reduce((sum, todo) => sum + priorityPoints[todo.priority], 0);
+    const completedPoints = todos.reduce(
+      (sum, todo) => sum + (todo.status === 'completed' ? priorityPoints[todo.priority] : 0),
+      0
+    );
+
+    const startDate = new Date(sprint.start_date * 1000);
+    startDate.setUTCHours(0, 0, 0, 0);
+
+    const endDate = new Date(Math.min(Math.floor(Date.now() / 1000), sprint.end_date) * 1000);
+    endDate.setUTCHours(0, 0, 0, 0);
+
+    const completedTodos = todos
+      .filter((todo) => todo.status === 'completed')
+      .map((todo) => ({
+        points: priorityPoints[todo.priority],
+        completedAt: todo.updated_at,
+      }));
+
+    const daily_progress: Array<{ date: string; completed: number; remaining: number }> = [];
+
+    for (let current = new Date(startDate); current.getTime() <= endDate.getTime(); current.setUTCDate(current.getUTCDate() + 1)) {
+      const dayEndTimestamp = Math.floor(current.getTime() / 1000) + 86399;
+      const cumulativeCompleted = completedTodos.reduce(
+        (sum, todo) => sum + (todo.completedAt <= dayEndTimestamp ? todo.points : 0),
+        0
+      );
+
+      daily_progress.push({
+        date: current.toISOString().slice(0, 10),
+        completed: cumulativeCompleted,
+        remaining: Math.max(totalPoints - cumulativeCompleted, 0),
+      });
+    }
+
+    return {
+      sprint_id: sprint.id,
+      sprint_name: sprint.name,
+      total_points: totalPoints,
+      completed_points: completedPoints,
+      daily_progress,
+    };
   },
 
   createMessage(message: Omit<Message, 'id' | 'created_at'>): Message {
@@ -764,4 +948,15 @@ const db: DatabaseOperations = {
 };
 
 export default db;
-export type { Todo, Message, Session, Setting, Task, Subtask, TodoComment, DatabaseOperations };
+export type {
+  Todo,
+  Message,
+  Session,
+  Setting,
+  Task,
+  Subtask,
+  TodoComment,
+  Sprint,
+  SprintVelocity,
+  DatabaseOperations,
+};

@@ -12,6 +12,7 @@ const CreateTodoSchema = z.object({
   project: z.string().nullable().optional(),
   parent_id: z.string().nullable().optional(),
   session_id: z.string().optional(),
+  sprint_id: z.string().optional(),
 });
 
 const BatchTodoSchema = CreateTodoSchema.extend({
@@ -52,6 +53,7 @@ export async function GET(request: NextRequest) {
     const statusParam = searchParams.get('status');
     const sinceParam = searchParams.get('since');
     const projectParam = searchParams.get('project');
+    const sprintIdParam = searchParams.get('sprint_id');
     const parentIdParam = searchParams.get('parent_id');
     const topLevelParam = searchParams.get('top_level');
 
@@ -63,6 +65,11 @@ export async function GET(request: NextRequest) {
 
     if (projectParam) {
       todos = todos.filter((t) => t.project === projectParam);
+    }
+
+    if (sprintIdParam) {
+      const sprintTodoIds = new Set(db.getSprintTodos(sprintIdParam).map((todo) => todo.id));
+      todos = todos.filter((todo) => sprintTodoIds.has(todo.id));
     }
 
     if (parentIdParam) {
@@ -154,6 +161,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (data.sprint_id) {
+      db.assignTodoToSprint(todo.id, data.sprint_id);
+    }
+
     return NextResponse.json(
       { todo },
       {
@@ -203,7 +214,7 @@ export async function PUT(request: NextRequest) {
       const existingTodo = db.getTodo(todoData.id);
 
       if (existingTodo) {
-        db.updateTodo(todoData.id, {
+          db.updateTodo(todoData.id, {
           content: todoData.content,
           status: todoData.status || 'pending',
            priority: todoData.priority || 'medium',
@@ -211,8 +222,11 @@ export async function PUT(request: NextRequest) {
            project: todoData.project ?? null,
            parent_id: todoData.parent_id ?? null,
            session_id: todoData.session_id || null,
-           updated_at: Date.now(),
-         });
+            updated_at: Date.now(),
+          });
+          if (todoData.sprint_id) {
+            db.assignTodoToSprint(todoData.id, todoData.sprint_id);
+          }
         results.push({ id: todoData.id, action: 'updated' });
       } else {
         db.createTodo({
@@ -223,8 +237,11 @@ export async function PUT(request: NextRequest) {
            agent: todoData.agent || null,
            project: todoData.project ?? null,
            parent_id: todoData.parent_id ?? null,
-           session_id: todoData.session_id || null,
-         });
+            session_id: todoData.session_id || null,
+          });
+          if (todoData.sprint_id) {
+            db.assignTodoToSprint(todoData.id, todoData.sprint_id);
+          }
         results.push({ id: todoData.id, action: 'created' });
       }
     }
