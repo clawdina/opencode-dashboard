@@ -97,6 +97,10 @@ function initializeDatabase(): Database.Database {
   if (!columns.some((c) => c.name === 'project')) {
     db.exec('ALTER TABLE todos ADD COLUMN project TEXT');
   }
+  if (!columns.some((c) => c.name === 'parent_id')) {
+    db.exec('ALTER TABLE todos ADD COLUMN parent_id TEXT REFERENCES todos(id) ON DELETE CASCADE');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_todos_parent_id ON todos(parent_id)');
+  }
 
   return db;
 }
@@ -113,9 +117,22 @@ const db: DatabaseOperations = {
     const database = getDatabase();
     const now = Math.floor(Date.now() / 1000);
 
+    if (todo.parent_id) {
+      if (!db.getTodo(todo.parent_id)) {
+        throw new Error(`Parent todo with id ${todo.parent_id} not found`);
+      }
+      if (db.hasCircularReference(todo.id, todo.parent_id)) {
+        throw new Error('Circular todo parent relationship is not allowed');
+      }
+      const parentDepth = db.getTodoDepth(todo.parent_id);
+      if (parentDepth + 1 > 3) {
+        throw new Error('Maximum todo depth exceeded');
+      }
+    }
+
     const stmt = database.prepare(`
-      INSERT INTO todos (id, session_id, content, status, priority, agent, project, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO todos (id, session_id, content, status, priority, agent, project, parent_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -126,6 +143,7 @@ const db: DatabaseOperations = {
       todo.priority,
       todo.agent,
       todo.project,
+      todo.parent_id ?? null,
       now,
       now
     );
@@ -149,6 +167,57 @@ const db: DatabaseOperations = {
     return stmt.all() as Todo[];
   },
 
+  getChildTodos(parentId: string): Todo[] {
+    const database = getDatabase();
+    const stmt = database.prepare('SELECT * FROM todos WHERE parent_id = ? ORDER BY created_at DESC');
+    return stmt.all(parentId) as Todo[];
+  },
+
+  getTodoDepth(id: string): number {
+    let depth = 0;
+    let currentTodo = db.getTodo(id);
+    const visited = new Set<string>();
+
+    while (currentTodo?.parent_id) {
+      if (visited.has(currentTodo.id)) {
+        break;
+      }
+      visited.add(currentTodo.id);
+      const parentTodo = db.getTodo(currentTodo.parent_id);
+      if (!parentTodo) {
+        break;
+      }
+      depth += 1;
+      currentTodo = parentTodo;
+    }
+
+    return depth;
+  },
+
+  hasCircularReference(childId: string, proposedParentId: string): boolean {
+    if (childId === proposedParentId) {
+      return true;
+    }
+
+    let currentId: string | null = proposedParentId;
+    const visited = new Set<string>();
+
+    while (currentId) {
+      if (currentId === childId || visited.has(currentId)) {
+        return true;
+      }
+      visited.add(currentId);
+
+      const currentTodo = db.getTodo(currentId);
+      if (!currentTodo?.parent_id) {
+        return false;
+      }
+      currentId = currentTodo.parent_id;
+    }
+
+    return false;
+  },
+
   updateTodo(id: string, updates: Partial<Omit<Todo, 'id' | 'created_at'>>): Todo {
     const database = getDatabase();
     const now = Math.floor(Date.now() / 1000);
@@ -160,9 +229,22 @@ const db: DatabaseOperations = {
 
     const updated = { ...todo, ...updates, updated_at: now };
 
+    if (updated.parent_id) {
+      if (!db.getTodo(updated.parent_id)) {
+        throw new Error(`Parent todo with id ${updated.parent_id} not found`);
+      }
+      if (db.hasCircularReference(id, updated.parent_id)) {
+        throw new Error('Circular todo parent relationship is not allowed');
+      }
+      const parentDepth = db.getTodoDepth(updated.parent_id);
+      if (parentDepth + 1 > 3) {
+        throw new Error('Maximum todo depth exceeded');
+      }
+    }
+
     const stmt = database.prepare(`
       UPDATE todos
-      SET session_id = ?, content = ?, status = ?, priority = ?, agent = ?, project = ?, updated_at = ?
+      SET session_id = ?, content = ?, status = ?, priority = ?, agent = ?, project = ?, parent_id = ?, updated_at = ?
       WHERE id = ?
     `);
 
@@ -173,6 +255,7 @@ const db: DatabaseOperations = {
       updated.priority,
       updated.agent,
       updated.project,
+      updated.parent_id ?? null,
       now,
       id
     );

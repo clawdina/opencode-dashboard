@@ -5,6 +5,7 @@ export interface Todo {
   priority: 'high' | 'medium' | 'low';
   agent?: string | null;
   project?: string | null;
+  parent_id?: string | null;
   session_id?: string | null;
   created_at: number;
   updated_at: number;

@@ -10,6 +10,7 @@ export interface Todo {
   priority: 'low' | 'medium' | 'high';
   agent: string | null;
   project: string | null;
+  parent_id?: string | null;
   created_at: number;
   updated_at: number;
 }
@@ -76,6 +77,9 @@ export interface DatabaseOperations {
   createTodo(todo: Omit<Todo, 'created_at' | 'updated_at'>): Todo;
   getTodo(id: string): Todo | null;
   getAllTodos(): Todo[];
+  getChildTodos(parentId: string): Todo[];
+  getTodoDepth(id: string): number;
+  hasCircularReference(childId: string, proposedParentId: string): boolean;
   updateTodo(id: string, updates: Partial<Omit<Todo, 'id' | 'created_at'>>): Todo;
   deleteTodo(id: string): boolean;
 
