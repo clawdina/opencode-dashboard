@@ -38,4 +38,5 @@ export interface KanbanCardProps {
   isSubtask?: boolean;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
+  onStatusChange?: (id: string, status: Todo['status']) => void;
 }

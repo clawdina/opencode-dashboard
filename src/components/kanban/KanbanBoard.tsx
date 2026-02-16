@@ -108,7 +108,8 @@ export function KanbanBoard({ todos, activeSprintId, onStatusChange, isLoading }
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 stagger-children">
+      <div className="overflow-x-auto pb-2" style={{ scrollbarGutter: 'stable' }}>
+      <div className="grid gap-4 stagger-children" style={{ gridTemplateColumns: 'repeat(5, minmax(320px, 1fr))' }}>
         {columns.map((status) => (
           <div
             key={status}
@@ -132,6 +133,7 @@ export function KanbanBoard({ todos, activeSprintId, onStatusChange, isLoading }
             </div>
           </div>
         ))}
+      </div>
       </div>
     );
   }
@@ -197,19 +199,21 @@ export function KanbanBoard({ todos, activeSprintId, onStatusChange, isLoading }
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          {columns.map((status) => (
-            <KanbanColumn
-              key={status}
-              title={status}
-              status={status}
-              todos={filteredTodos.filter((t) => t.status === status)}
-              onStatusChange={onStatusChange}
-              childTodosMap={childTodosMap}
-              expandedParents={expandedParents}
-              onToggleExpand={handleToggleExpand}
-            />
-          ))}
+        <div className="overflow-x-auto pb-2" style={{ scrollbarGutter: 'stable' }}>
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(5, minmax(320px, 1fr))' }}>
+            {columns.map((status) => (
+              <KanbanColumn
+                key={status}
+                title={status}
+                status={status}
+                todos={filteredTodos.filter((t) => t.status === status)}
+                onStatusChange={onStatusChange}
+                childTodosMap={childTodosMap}
+                expandedParents={expandedParents}
+                onToggleExpand={handleToggleExpand}
+              />
+            ))}
+          </div>
         </div>
 
         <DragOverlay>

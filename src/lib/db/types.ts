@@ -139,6 +139,7 @@ export interface DatabaseOperations {
   getTodoSprints(todoId: string): Sprint[];
   getTodoSprintMap(): Map<string, Array<{ id: string; name: string }>>;
   getSprintVelocity(sprintId: string): SprintVelocity;
+  getActiveSprint(): Sprint | null;
 
   // Message operations
   createMessage(message: Omit<Message, 'id' | 'created_at'>): Message;

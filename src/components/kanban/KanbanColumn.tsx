@@ -43,7 +43,7 @@ export function KanbanColumn({ title, status, todos, onStatusChange, childTodosM
     <div
       ref={setNodeRef}
       className={cn(
-        'flex flex-col rounded-xl transition-all',
+        'flex flex-col rounded-xl transition-all min-w-[320px]',
         !collapsed && 'min-h-[500px]',
         isOver && 'ring-2 ring-offset-2'
       )}
@@ -117,6 +117,7 @@ export function KanbanColumn({ title, status, todos, onStatusChange, childTodosM
                         childCount={allChildren.length}
                         isExpanded={isExpanded}
                         onToggleExpand={() => onToggleExpand(todo.id)}
+                        onStatusChange={onStatusChange}
                       />
                       {isExpanded && childrenInColumn.length > 0 && (
                         <div
@@ -128,6 +129,7 @@ export function KanbanColumn({ title, status, todos, onStatusChange, childTodosM
                               key={child.id}
                               todo={child}
                               isSubtask
+                              onStatusChange={onStatusChange}
                             />
                           ))}
                         </div>
@@ -136,7 +138,7 @@ export function KanbanColumn({ title, status, todos, onStatusChange, childTodosM
                   );
                 })}
                 {orphanChildren.map((todo) => (
-                  <KanbanCard key={todo.id} todo={todo} isSubtask />
+                  <KanbanCard key={todo.id} todo={todo} isSubtask onStatusChange={onStatusChange} />
                 ))}
               </>
             )}

@@ -608,6 +608,15 @@ const db: DatabaseOperations = {
     };
   },
 
+  getActiveSprint(): Sprint | null {
+    const database = getDatabase();
+    const now = Math.floor(Date.now() / 1000);
+    const stmt = database.prepare('SELECT * FROM sprints WHERE status = ? ORDER BY start_date ASC, created_at ASC');
+    const activeSprints = stmt.all('active') as Sprint[];
+
+    return activeSprints.find((sprint) => sprint.start_date <= now && now <= sprint.end_date) ?? null;
+  },
+
   createMessage(message: Omit<Message, 'id' | 'created_at'>): Message {
     const database = getDatabase();
     const now = Math.floor(Date.now() / 1000);

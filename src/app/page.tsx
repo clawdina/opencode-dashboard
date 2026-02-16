@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { NewTicketModal } from '@/components/kanban/NewTicketModal';
 import { VelocityWidget } from '@/components/sprints/VelocityWidget';
 import { CreateSprintModal } from '@/components/sprints/CreateSprintModal';
+import { SprintHeader } from '@/components/sprints/SprintHeader';
 
 export default function Dashboard() {
   const { todos, messages, sprints, activeSprint, setActiveSprint, isConnected } = useDashboardStore();
@@ -191,7 +192,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 animate-dashboard-enter">
+      <main className="mx-auto max-w-[1920px] px-4 sm:px-6 lg:px-8 py-6 animate-dashboard-enter">
         <div className="flex flex-col md:flex-row gap-6">
           <div className="flex-1 min-w-0">
             <div className="mb-4 flex items-start justify-between">
@@ -230,6 +231,7 @@ export default function Dashboard() {
               onClose={() => setNewSprintOpen(false)}
               onCreated={() => fetchData()}
             />
+            {selectedSprint && <SprintHeader sprint={selectedSprint} />}
             <KanbanBoard
               todos={todos}
               activeSprintId={activeSprint}

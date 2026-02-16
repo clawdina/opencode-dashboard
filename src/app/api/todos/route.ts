@@ -138,6 +138,7 @@ export async function POST(request: NextRequest) {
     const data = CreateTodoSchema.parse(body);
 
     let todo;
+    let autoSprintId: string | null = null;
 
     if (data.id) {
       todo = db.updateTodo(data.id, {
@@ -161,6 +162,14 @@ export async function POST(request: NextRequest) {
         parent_id: data.parent_id ?? null,
         session_id: data.session_id || null,
       });
+
+      if (!data.sprint_id) {
+        const activeSprint = db.getActiveSprint();
+        if (activeSprint) {
+          db.assignTodoToSprint(todo.id, activeSprint.id);
+          autoSprintId = activeSprint.id;
+        }
+      }
     }
 
     if (data.sprint_id) {
@@ -168,7 +177,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { todo },
+      { todo, auto_sprint_id: autoSprintId },
       {
         status: 200,
         headers: corsHeaders(request),

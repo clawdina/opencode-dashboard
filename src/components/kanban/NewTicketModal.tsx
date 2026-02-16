@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { X } from 'lucide-react';
 import { useDashboardStore } from '@/stores/dashboard';
 
@@ -86,15 +86,24 @@ export function NewTicketModal({ open, onClose, onCreated }: NewTicketModalProps
     return () => document.removeEventListener('keydown', handleTab);
   }, [open]);
 
+  useEffect(() => {
+    if (open && !sprintId) {
+      const activeSprint = sprints.find((s) => s.status === 'active');
+      if (activeSprint) {
+        setSprintId(activeSprint.id);
+      }
+    }
+  }, [open, sprintId, sprints]);
+
   const reset = () => {
     setContent('');
     setPriority('medium');
     setProject('');
-    setSprintId('');
+    setSprintId(sprints.find((s) => s.status === 'active')?.id ?? '');
     setError(null);
   };
 
-  const handleSubmit = async (e?: FormEvent) => {
+  const handleSubmit = async (e?: { preventDefault: () => void }) => {
     e?.preventDefault();
     const trimmed = content.trim();
     if (!trimmed || submitting) return;

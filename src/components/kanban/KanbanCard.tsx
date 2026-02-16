@@ -7,7 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { GripVertical, Clock, User, FolderOpen, ChevronDown, ChevronRight, ListTree, MessageSquare, Timer, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDashboardStore } from '@/stores/dashboard';
-import { CommentDrawer } from './CommentDrawer';
+import { TaskDetailModal } from './TaskDetailModal';
 import type { KanbanCardProps, Todo } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '';
@@ -27,9 +27,9 @@ const priorityStyles: Record<Todo['priority'], { bg: string; color: string }> = 
   low: { bg: 'rgba(34, 197, 94, 0.15)', color: '#22c55e' },
 };
 
-export function KanbanCard({ todo, isDragging, childCount, isSubtask, isExpanded, onToggleExpand }: KanbanCardProps) {
+export function KanbanCard({ todo, isDragging, childCount, isSubtask, isExpanded, onToggleExpand, onStatusChange }: KanbanCardProps) {
   const allSprints = useDashboardStore((s) => s.sprints);
-  const [commentDrawerOpen, setCommentDrawerOpen] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [commentCount, setCommentCount] = useState(todo.comment_count || 0);
   const [sprintDropdownOpen, setSprintDropdownOpen] = useState(false);
   const [localSprints, setLocalSprints] = useState(todo.sprints || []);
@@ -108,10 +108,11 @@ export function KanbanCard({ todo, isDragging, childCount, isSubtask, isExpanded
           : isSubtask ? 'none' : 'var(--shadow-sm)',
       }}
       className={cn(
-        'group relative rounded-lg transition-all duration-200',
+        'group relative rounded-lg transition-all duration-200 cursor-pointer',
         isSubtask ? 'p-2.5' : 'p-3',
         dragging && 'opacity-80 rotate-2 scale-105'
       )}
+      onClick={() => { if (!dragging) setDetailModalOpen(true); }}
       onMouseEnter={(e) => {
         if (!dragging) {
           e.currentTarget.style.borderColor = 'var(--border-strong)';
@@ -295,20 +296,15 @@ export function KanbanCard({ todo, isDragging, childCount, isSubtask, isExpanded
               </span>
             )}
 
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setCommentDrawerOpen(true);
-              }}
-              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs transition-colors"
-              style={{ color: 'var(--muted)' }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-            >
-              <MessageSquare className="h-3.5 w-3.5" />
-              {commentCount > 0 && <span>{commentCount}</span>}
-            </button>
+            {commentCount > 0 && (
+              <span
+                className="inline-flex items-center gap-1 text-xs"
+                style={{ color: 'var(--muted)' }}
+              >
+                <MessageSquare className="h-3 w-3" />
+                {commentCount}
+              </span>
+            )}
             
             {!isSubtask && (
               <span
@@ -323,11 +319,11 @@ export function KanbanCard({ todo, isDragging, childCount, isSubtask, isExpanded
         </div>
       </div>
 
-      <CommentDrawer
-        todoId={todo.id}
-        open={commentDrawerOpen}
-        onClose={() => setCommentDrawerOpen(false)}
-        onCommentCreated={() => setCommentCount((prev) => prev + 1)}
+      <TaskDetailModal
+        todo={todo}
+        open={detailModalOpen}
+        onClose={() => setDetailModalOpen(false)}
+        onStatusChange={onStatusChange ?? (() => {})}
       />
     </div>
   );
