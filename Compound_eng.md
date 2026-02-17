@@ -48,11 +48,11 @@ Caveats:
 
 ```
 Oh-My-OpenCode ──POST──> Next.js API ──> SQLite + NaCl Encryption
-                              │
-                    ┌─────────┴─────────┐
-                    │   Polling (3s)    │
-                    ▼                   ▼
-              Web (Next.js)      Mobile (React Native)
+                               │
+                          Polling (3s)
+                               │
+                               ▼
+                          Web (Next.js)
 ```
 
 ### Components Created
@@ -66,14 +66,11 @@ Oh-My-OpenCode ──POST──> Next.js API ──> SQLite + NaCl Encryption
 | Dashboard Page | `src/app/page.tsx` | Main UI with polling |
 | Zustand Store | `src/stores/dashboard.ts` | State management |
 | Polling Hook | `src/hooks/usePolling.ts` | 3-second API polling |
-| Mobile App | `mobile/` | React Native/Expo app |
 | OpenCode Hook | `opencode-hook/` | Integration for oh-my-opencode |
 
 ### Tech Stack
 
 **Web**: Next.js 16, TypeScript, Tailwind CSS 4, @dnd-kit, Zustand, better-sqlite3, tweetnacl, Zod
-
-**Mobile**: Expo, React Native, TypeScript, Zustand
 
 ---
 
@@ -94,7 +91,6 @@ Oh-My-OpenCode ──POST──> Next.js API ──> SQLite + NaCl Encryption
 |-------|-------------------|
 | Polling every 3s | WebSockets or Server-Sent Events |
 | SQLite | PostgreSQL for multi-instance |
-| No offline support | Local caching in mobile |
 | Speculative hook API | Should verify oh-my-opencode's actual interface |
 
 ### Missing Requirements
@@ -102,7 +98,6 @@ Oh-My-OpenCode ──POST──> Next.js API ──> SQLite + NaCl Encryption
 | Requested | Built | Gap |
 |-----------|-------|-----|
 | Text message updates | In-app only | No SMS/Twilio integration |
-| Push notifications | Imported expo-notifications | Never implemented |
 | oh-my-opencode integration | Generic hook | Not verified against actual API |
 
 ### Code Quality Issues
@@ -156,23 +151,11 @@ opencode-dashboard/
 │       │   ├── encryption.ts
 │       │   └── types.ts
 │       └── utils.ts
-├── mobile/
-│   ├── App.tsx
-│   └── src/
-│       ├── components/
-│       │   ├── KanbanBoard.tsx
-│       │   └── MessageFeed.tsx
-│       ├── hooks/
-│       │   └── usePolling.ts
-│       ├── stores/
-│       │   └── dashboard.ts
-│       └── types/
-│           └── index.ts
 ├── opencode-hook/
 │   ├── dashboard-hook.ts
 │   └── README.md
 ├── README.md
-└── SAA-DAY.md (this file)
+└── Compound_eng.md (this file)
 ```
 
 ---
@@ -185,11 +168,6 @@ cd opencode-dashboard
 bun install
 bun run dev
 # Visit http://localhost:3000
-
-# Mobile app
-cd opencode-dashboard/mobile
-bun install
-bun run ios  # or android
 
 # Build check
 bun run build

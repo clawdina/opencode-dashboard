@@ -35,8 +35,7 @@ Real-time Kanban board and encrypted message feed for tracking oh-my-opencode ag
 20. [Tailscale ACL Policy (Optional)](#tailscale-acl-policy-optional)
 21. [Troubleshooting](#troubleshooting)
 22. [Tech Stack](#tech-stack)
-23. [Mobile App](#mobile-app)
-24. [Data Storage](#data-storage)
+23. [Data Storage](#data-storage)
 
 ---
 
@@ -157,20 +156,9 @@ Polling is client-side with configurable interval. SSE planned for future.
 ### Dark Mode
 Full dark mode support across:
 - Web dashboard (Next.js)
-- Mobile app (React Native)
 - All charts and visualizations
 
 Automatically respects system preference with manual toggle.
-
-### Mobile App
-React Native / Expo companion app with:
-- Full Kanban board
-- Task creation and editing
-- Comment viewing
-- Sprint filtering
-- Dark mode support
-
-Connects to dashboard API over Tailscale for secure remote access.
 
 ---
 
@@ -223,14 +211,14 @@ Dashboard runs on `http://127.0.0.1:3000` by default
 │  │  /opencode  → 127.0.0.1:3000   (Dashboard)     │    │
 │  └─────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────┘
-         ▲                          ▲
-         │  WireGuard tunnel        │  WireGuard tunnel
-         │  (encrypted)             │  (encrypted)
-    ┌────┴─────┐             ┌──────┴──────┐
-    │  iPhone  │             │  Laptop     │
-    │  Tailscale             │  Tailscale  │
-    │  app     │             │  + browser  │
-    └──────────┘             └─────────────┘
+                          ▲
+                          │  WireGuard tunnel
+                          │  (encrypted)
+                    ┌──────┴──────┐
+                    │  Laptop     │
+                    │  Tailscale  │
+                    │  + browser  │
+                    └─────────────┘
 ```
 
 **Key design principle**: Both services bind to `127.0.0.1` only. Tailscale Serve proxies HTTPS traffic from your tailnet to localhost — no ports are exposed on the LAN or internet.
@@ -655,17 +643,6 @@ tailscale status
 ```
 
 Or check the admin console: [login.tailscale.com/admin/machines](https://login.tailscale.com/admin/machines) — your new device should appear in the list.
-
-### React Native / Expo mobile app
-
-Once Tailscale is connected on the device, the app reaches the API directly:
-
-```bash
-cd mobile
-bun install
-export EXPO_PUBLIC_API_URL=https://<hostname>.<tailnet>.ts.net
-bun run ios   # or bun run android
-```
 
 ---
 
@@ -1224,13 +1201,11 @@ curl -H "Authorization: Bearer $DASHBOARD_API_KEY" \
 
 - [ ] **Replace polling with SSE** — Reduce latency and server load.
 - [x] **Encryption key management** — Key file enforced to `chmod 600`, data dir to `0o700`. `DATA_DIR` env var supported.
-- [ ] **Push notifications** — `expo-notifications` is imported but not wired up. Add FCM or APNs.
 - [x] **Batch todo sync** — `PUT /api/todos` accepts bulk upsert; hook batches all todos in one request with POST fallback.
 
 ### Low (nice to have)
 
 - [ ] **Migrate to PostgreSQL** — Needed for multi-device or multi-agent setups.
-- [ ] **Offline caching** — Mobile app has no offline support.
 - [x] **Audit logging** — Status history table logs all status changes with timestamp and agent. Structured JSON logs for auth failures and rate limit hits.
 
 ---
@@ -1291,12 +1266,6 @@ tailscale status
 3. Try the Tailscale IP directly: `curl http://100.x.y.z:3000`
 4. If that works but the hostname doesn't, MagicDNS may be off → enable at [DNS settings](https://login.tailscale.com/admin/dns)
 
-### iOS app can't reach API
-
-1. Ensure Tailscale VPN is connected (check iOS Settings → VPN)
-2. Enable "VPN On Demand" to prevent disconnects
-3. The React Native app uses `EXPO_PUBLIC_API_URL` — make sure it's set to the `https://mac-mini.<tailnet>.ts.net` URL
-
 ### SSH not working
 
 ```bash
@@ -1335,23 +1304,10 @@ openclaw gateway restart
 | **Web app** | Next.js 16, TypeScript, Tailwind CSS, @dnd-kit, Zustand |
 | **Database** | SQLite (better-sqlite3) |
 | **Encryption** | tweetnacl (NaCl secretbox) |
-| **Mobile app** | Expo, React Native, TypeScript, Zustand |
 | **Agent runtime** | OpenClaw (gateway on port 18789) |
 | **Coding agents** | oh-my-opencode (Sisyphus, Atlas, Hephaestus, etc.) |
 | **Secure access** | Tailscale (WireGuard, MagicDNS, auto-HTTPS) |
 | **Testing** | Playwright (e2e) |
-
----
-
-## Mobile App
-
-```bash
-cd mobile
-bun install
-bun run ios    # or bun run android
-```
-
-Set `EXPO_PUBLIC_API_URL` to your Tailscale hostname for remote access, or `http://localhost:3000` for local development.
 
 ---
 

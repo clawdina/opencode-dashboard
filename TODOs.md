@@ -1,16 +1,15 @@
 # OpenCode Dashboard — TODOs
 
-Master task list for building the v2 dashboard with Linear integration, agent monitoring, and mobile app.
+Master task list for building the v2 web dashboard with Linear integration and agent monitoring.
 
 Reference docs:
 - `ARCHITECTURE.md` — system architecture, data flows, DB schema
-- `SCREENS.md` — every mobile screen, wireframes, data sources
-- `SAA-DAY.md` — original session log with known issues
+- `Compound_eng.md` — original session log with known issues
 - `.env.example` — all environment variables
 
 ---
 
-## Phase 0: Fix Security Gaps (from SAA-DAY.md audit)
+## Phase 0: Fix Security Gaps (from Compound_eng.md audit)
 
 > These are blocking. Nothing else ships until auth works.
 
@@ -39,32 +38,18 @@ Reference docs:
 
 - [ ] **1.1** Create `users` and `auth_sessions` tables in SQLite (see ARCHITECTURE.md schema)
 - [ ] **1.2** Build `POST /api/auth/github` endpoint
-  - Accept `{ code }` from mobile OAuth flow
-  - Exchange code for GitHub access token (server-side, keeps client_secret safe)
-  - Upsert `users` row (github_id, username, avatar_url)
-  - Create `auth_sessions` row with SHA-256 hashed bearer token
-  - Return `{ token, user }` to mobile
+   - Accept `{ code }` from OAuth flow
+   - Exchange code for GitHub access token (server-side, keeps client_secret safe)
+   - Upsert `users` row (github_id, username, avatar_url)
+   - Create `auth_sessions` row with SHA-256 hashed bearer token
+   - Return `{ token, user }` to client
 - [ ] **1.3** Build `GET /api/auth/verify` endpoint
-  - Accept bearer token, look up `auth_sessions`, check expiry
-  - Return `{ valid: boolean, user }` — used by mobile on app open
+   - Accept bearer token, look up `auth_sessions`, check expiry
+   - Return `{ valid: boolean, user }` — used by clients on app open
 - [ ] **1.4** Replace API key middleware (from 0.1) with session token middleware
-  - API key still valid for hook-to-backend (machine auth)
-  - Session token valid for mobile-to-backend (user auth)
-  - Middleware checks for either
-- [ ] **1.5** Mobile: Implement GitHub OAuth screen (Screen 1 in SCREENS.md)
-  - `expo-auth-session` + `expo-crypto` + `expo-web-browser`
-  - GitHub OAuth app: create at github.com/settings/developers
-  - Callback URL: `myapp://auth/callback` via `makeRedirectUri({ scheme: 'myapp' })`
-  - On success: store token in `expo-secure-store`
-- [ ] **1.6** Mobile: Implement biometric gate (Screen 0 in SCREENS.md)
-  - `expo-local-authentication`
-  - Check `hasHardwareAsync()` + `isEnrolledAsync()`
-  - On app open with stored token → `authenticateAsync()` prompt
-  - Fallback: passcode entry
-  - Config in `app.json`: `faceIDPermission`
-- [ ] **1.7** Mobile: Secure token storage
-  - All tokens in `expo-secure-store` (iOS Keychain, Android Keystore)
-  - Never in AsyncStorage or Zustand persisted state
+   - API key still valid for hook-to-backend (machine auth)
+   - Session token valid for client-to-backend (user auth)
+   - Middleware checks for either
 
 ---
 
@@ -78,12 +63,8 @@ Reference docs:
   - In-memory EventEmitter (single-process; SQLite is single-process anyway)
   - API routes emit events on writes: `eventBus.emit('todo:updated', todo)`
   - SSE handler subscribes and pushes to connected clients
-- [ ] **2.3** Mobile: Replace `usePolling` hook with SSE client
-  - Use `EventSource` polyfill for React Native (e.g., `react-native-sse`)
-  - Reconnect on disconnect with exponential backoff
-  - Keep polling as fallback when SSE unavailable
-- [ ] **2.4** Web: Same SSE migration for `src/hooks/usePolling.ts`
-- [ ] **2.5** Remove 3-second polling interval as default
+- [ ] **2.3** Web: SSE migration for `src/hooks/usePolling.ts`
+- [ ] **2.4** Remove 3-second polling interval as default
 
 ---
 
@@ -106,16 +87,13 @@ Reference docs:
 - [ ] **3.4** Build `GET /api/agents/:id` endpoint
   - Full agent profile: status, skills, soul_md, task history, sub-agents
 - [ ] **3.5** Build agent action endpoints
-  - `POST /api/agents/:id/sleep` — pause agent (Temporal sleep signal or BackgroundManager cancel)
-  - `POST /api/agents/:id/stop` — cancel agent workflow
-  - `POST /api/agents/:id/unblock` — send unblock signal
-  - `POST /api/agents/:id/restart` — re-launch with same config
-- [ ] **3.6** Mobile: Build Agents List screen (Screen 3)
-- [ ] **3.7** Mobile: Build Agent Profile screen (Screen 4) + Soul.md viewer (4b)
-  - Markdown rendering: `react-native-markdown-display` or similar
-- [ ] **3.8** Track agent "age" — computed from `agents.created_at`
-- [ ] **3.9** Track agent hierarchy — `parent_agent_id` for sub-agent tree view
-- [ ] **3.10** Track OpenClaw <-> oh-my-opencode integration release status
+   - `POST /api/agents/:id/sleep` — pause agent (Temporal sleep signal or BackgroundManager cancel)
+   - `POST /api/agents/:id/stop` — cancel agent workflow
+   - `POST /api/agents/:id/unblock` — send unblock signal
+   - `POST /api/agents/:id/restart` — re-launch with same config
+- [ ] **3.6** Track agent "age" — computed from `agents.created_at`
+- [ ] **3.7** Track agent hierarchy — `parent_agent_id` for sub-agent tree view
+- [ ] **3.8** Track OpenClaw <-> oh-my-opencode integration release status
   - Current blocker: upstream oh-my-opencode release for OpenClaw callback integration is not live yet
   - Once released, wire in the new run/integration flags and update hook docs + dashboard event flow
 
@@ -132,26 +110,21 @@ Reference docs:
   - Verify webhook signature with `LinearWebhookClient` + `LINEAR_WEBHOOK_SECRET`
   - Handle: Issue created/updated/removed, Project updated, Cycle updated
   - Upsert into `linear_issues` / `linear_projects` tables
-  - Emit SSE event for real-time mobile update
+   - Emit SSE event for real-time web update
 - [ ] **4.5** Build project sync: `POST /api/linear/sync`
   - Full sync: fetch all projects + issues via `linearClient.projects()`, `project.issues()`
   - Incremental: use `updatedAt` filter for delta sync
   - Run on: app startup, webhook gaps, manual trigger
 - [ ] **4.6** Build card drag handler for kanban
-  - Mobile drags card → `POST /api/linear/sync` with `{ issueId, newStateId }`
-  - Backend calls `linearClient.updateIssue(id, { stateId })` + updates local cache
-  - Optimistic update on mobile, confirm via SSE
+   - Web drags card → `POST /api/linear/sync` with `{ issueId, newStateId }`
+   - Backend calls `linearClient.updateIssue(id, { stateId })` + updates local cache
+   - Optimistic update on web, confirm via SSE
 - [ ] **4.7** Register Linear webhook programmatically
-  - `webhookCreate` mutation with `resourceTypes: ["Issue", "Project", "Cycle"]`
-  - Store webhook ID for cleanup
-- [ ] **4.8** Mobile: Build Projects List screen (Screen 5)
-- [ ] **4.9** Mobile: Build Project Dashboard / Kanban screen (Screen 6)
-  - Columns from `linear_workflow_states` ordered by `position`
-  - Cards from `linear_issues` grouped by `state_type`
-  - Agent badge from `linear_issues.agent_task_id` → `agents.name`
-- [ ] **4.10** Link agents to Linear issues
-  - When agent starts work on a Linear issue, set `linear_issues.agent_task_id`
-  - Show agent avatar/name on kanban card
+   - `webhookCreate` mutation with `resourceTypes: ["Issue", "Project", "Cycle"]`
+   - Store webhook ID for cleanup
+- [ ] **4.8** Link agents to Linear issues
+   - When agent starts work on a Linear issue, set `linear_issues.agent_task_id`
+   - Show agent avatar/name on kanban card in web dashboard
 
 ---
 
@@ -179,10 +152,10 @@ Reference docs:
   6. On DONE/CANCELLED: update DB, notify parent
   ```
 - [ ] **5.4** Define activities
-  - `startAgentActivity` — launches agent via oh-my-opencode BackgroundManager
-  - `monitorAgentActivity` — polls agent progress, heartbeats to Temporal
-  - `sendNotificationActivity` — push notification via FCM/APNs
-  - `updateDashboardActivity` — writes agent status to SQLite
+   - `startAgentActivity` — launches agent via oh-my-opencode BackgroundManager
+   - `monitorAgentActivity` — polls agent progress, heartbeats to Temporal
+   - `sendNotificationActivity` — notification via backend
+   - `updateDashboardActivity` — writes agent status to SQLite
 - [ ] **5.5** Implement sleep/wake signals
   - `sleepSignal` — workflow pauses, agent Worker shuts down
   - `wakeSignal` — workflow resumes, agent Worker re-spawns
@@ -222,14 +195,7 @@ Reference docs:
   - Every 15 min, flush batch as single push notification
   - "3 tasks completed in the last 15 minutes"
 - [ ] **6.5** Build `GET /api/settings/alerts` and `PUT /api/settings/alerts` endpoints
-  - Mobile Settings screen (Screen 8) reads and updates these
-- [ ] **6.6** Implement push notifications
-  - `expo-notifications` + Firebase Cloud Messaging (FCM)
-  - Backend sends push via FCM HTTP API when Temporal activity fires
-  - Mobile registers device token on login → stored in `users` table
-- [ ] **6.7** "Do Not Disturb" / mute mode
-  - Signal all active workflows to suppress notifications
-  - Configurable schedule (e.g., mute 10pm-8am)
+   - Web Settings reads and updates these
 
 ---
 
@@ -262,7 +228,7 @@ Reference docs:
     3. Set agent_tasks.blocked_at = now
     4. Fire Temporal blockDetectedSignal
     5. Alert rule timer starts (see Phase 6)
-    6. Mobile shows blocker card with [Unblock] button
+     6. Dashboard shows blocker card with [Unblock] button
   ```
 
 - [ ] **7.3** How often to send messages (frequency control)
@@ -290,14 +256,14 @@ Reference docs:
     c. Repeated failures (>5 errors in 10 min) — auto-sleep + alert user
     d. Resource limit hit (API rate limit, token budget exceeded)
     e. Scheduled sleep window (e.g., 2am-6am to save power on Mac Mini)
-    f. User sends "Do Not Disturb" signal from mobile
+     f. User sends "Do Not Disturb" signal from dashboard
 
-  Sleep behavior:
-    1. Agent finishes current atomic operation (don't interrupt mid-commit)
-    2. Sets agent.status = "sleeping"
-    3. Temporal workflow pauses via condition(() => !isSleeping)
-    4. Worker optionally shuts down (saves compute)
-    5. Dashboard shows 💤 sleeping indicator
+   Sleep behavior:
+     1. Agent finishes current atomic operation (don't interrupt mid-commit)
+     2. Sets agent.status = "sleeping"
+     3. Temporal workflow pauses via condition(() => !isSleeping)
+     4. Worker optionally shuts down (saves compute)
+     5. Dashboard shows sleeping indicator
 
   Wake triggers:
     a. User taps "Wake" on agent profile
@@ -308,41 +274,22 @@ Reference docs:
 
 ---
 
-## Phase 8: Mobile App Rebuild
-
-- [ ] **8.1** Set up Expo Router for navigation (replace single-file App.tsx)
-  - Auth stack (Login, Biometric Gate)
-  - Main tab navigator (Agents, Projects, Notifications, Settings)
-  - Nested stacks per tab (list → detail)
-- [ ] **8.2** Build bottom tab bar with badges (unread count on Notifications tab)
-- [ ] **8.3** Build Home screen (Screen 2) — agent/project summary cards + recent activity
-- [ ] **8.4** Build Agents tab (Screen 3 → Screen 4 → Screen 4b)
-- [ ] **8.5** Build Projects tab (Screen 5 → Screen 6 with kanban)
-- [ ] **8.6** Build Notifications tab (Screen 7) with action buttons (Unblock, View Task)
-- [ ] **8.7** Build Settings tab (Screen 8) with alert rule configuration
-- [ ] **8.8** Add `react-native-markdown-display` for Soul.md rendering
-- [ ] **8.9** Add `expo-haptics` for tactile feedback on actions
-- [ ] **8.10** Implement offline caching with local SQLite (`expo-sqlite`) + sync-on-reconnect
-
----
-
 ## Phase 9: Web Dashboard Updates
 
 - [ ] **9.1** Add agent monitoring panel to web dashboard
 - [ ] **9.2** Add Linear kanban view (project selector + board)
 - [ ] **9.3** Replace polling with SSE on web
-- [ ] **9.4** Add login page (GitHub OAuth, matching mobile flow)
+- [ ] **9.4** Add login page (GitHub OAuth)
 
 ---
 
 ## Phase 10: Testing and Hardening
 
 - [ ] **10.1** API tests: auth middleware, CORS, rate limiting
-- [ ] **10.2** Integration tests: hook → API → DB → SSE → mobile flow
+- [ ] **10.2** Integration tests: hook → API → DB → SSE → web flow
 - [ ] **10.3** Linear webhook signature verification test
 - [ ] **10.4** Temporal workflow tests: block → alert → unblock cycle
-- [ ] **10.5** Mobile E2E: login → biometric → navigate → drag card → receive notification
-- [ ] **10.6** Load test: 100 concurrent agents posting updates
+- [ ] **10.5** Load test: 100 concurrent agents posting updates
 
 ---
 
@@ -350,15 +297,13 @@ Reference docs:
 
 ```
 Phase 0 (Security)
-  └──> Phase 1 (Auth) ──> Phase 8 (Mobile Rebuild)
-  └──> Phase 2 (SSE)  ──> Phase 3 (Agents) ──> Phase 5 (Temporal)
-                                                  └──> Phase 6 (Alerting)
-                                                  └──> Phase 7 (Lifecycle)
-                       ──> Phase 4 (Linear) ──> Phase 8 (Mobile)
-                                             ──> Phase 9 (Web)
+  └──> Phase 1 (Auth) ──> Phase 2 (SSE)  ──> Phase 3 (Agents) ──> Phase 5 (Temporal)
+                                                                      └──> Phase 6 (Alerting)
+                                                                      └──> Phase 7 (Lifecycle)
+                          ──> Phase 4 (Linear) ──> Phase 9 (Web)
 All ──> Phase 10 (Testing)
 ```
 
-Critical path: **0 → 1 → 2 → 3 → 4 → 8** (gets a working mobile app with agents + Linear)
+Critical path: **0 → 1 → 2 → 3 → 4 → 9** (gets a working web dashboard with agents + Linear)
 
 Temporal (5/6/7) can be added incrementally — agents work without it, they just lack durable retry and smart alerting.
