@@ -46,7 +46,7 @@ export function KanbanColumn({ title, status, todos, onStatusChange, onSelectTod
     <div
       ref={setNodeRef}
       className={cn(
-        'flex flex-col rounded-xl transition-all min-w-[320px]',
+        'flex flex-col rounded-xl transition-all',
         !collapsed && 'min-h-[500px]',
         isOver && 'ring-2 ring-offset-2'
       )}
